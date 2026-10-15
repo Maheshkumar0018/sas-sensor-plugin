@@ -10,8 +10,8 @@ Status values: `Draft` → `Approved` → `Implemented` → `Verified`.
 
 | ID | Requirement | Old F# | Verified by | Status |
 |----|-------------|--------|-------------|--------|
-| REQ-001 | Transmit an LFM chirp with configurable centre frequency, bandwidth, and pulse length. Simulate in complex baseband. | F1 | V1 | Draft |
-| REQ-002 | Model a transmitter and an N-element along-track receiver array with configurable element count, spacing, and element length. | F2 | V1 | Draft |
+| REQ-001 | Transmit an LFM chirp with configurable centre frequency, bandwidth, and pulse length. Simulate in complex baseband. | F1 | V1 | Implemented |
+| REQ-002 | Model a transmitter and an N-element along-track receiver array with configurable element count, spacing, and element length. | F2 | V1 | Implemented |
 | REQ-003 | Apply transmit and receive beam patterns `b(θ) = sinc(D sinθ / λ)` at the centre frequency. | F3 | V3 | Draft |
 | REQ-004 | Derive scene geometry from Gazebo ray casting (`gpu_ray` or `ray`). Reconstruct surfaces and produce acoustic shadows by rejecting grazing and occluded faces. | F4 | V4 | Draft |
 | REQ-005 | Represent the scene as world-fixed voxel scatterers. Position jitter and complex speckle derive from a hash of the voxel index, so a voxel is identical in every ping. | F5 | V4 | Draft |

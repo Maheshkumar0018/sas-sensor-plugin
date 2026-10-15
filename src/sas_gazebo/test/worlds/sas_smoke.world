@@ -1,0 +1,31 @@
+<?xml version="1.0"?>
+<!-- Plan 003 smoke test: one static sonar over a ground plane. Not a validation world. -->
+<sdf version="1.6">
+  <world name="sas_smoke">
+    <include><uri>model://ground_plane</uri></include>
+    <model name="sonar_mount">
+      <static>true</static>
+      <pose>0 0 10 0 0.35 0</pose>
+      <link name="sas_array_link">
+        <sensor name="sas_sonar" type="ray">
+          <always_on>true</always_on>
+          <update_rate>10</update_rate>
+          <ray>
+            <scan>
+              <horizontal><samples>64</samples><min_angle>-0.40</min_angle><max_angle>0.40</max_angle></horizontal>
+              <vertical><samples>64</samples><min_angle>-0.80</min_angle><max_angle>0.20</max_angle></vertical>
+            </scan>
+            <range><min>2.0</min><max>60.0</max><resolution>0.01</resolution></range>
+          </ray>
+          <plugin name="sas_sonar_plugin" filename="libsas_sonar_plugin.so">
+            <ros><namespace>/sas</namespace></ros>
+            <topic>/sas/ping</topic>
+            <frame_id>sas_array_link</frame_id>
+            <num_elements>16</num_elements>
+            <element_spacing>0.04</element_spacing>
+          </plugin>
+        </sensor>
+      </link>
+    </model>
+  </world>
+</sdf>

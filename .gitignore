@@ -6,6 +6,9 @@ build/
 install/
 log/
 
+# --- workspace-local dependencies (scripts/setup_local_fftw.sh, ADR-0009) ---
+.deps/
+
 # --- recorded data (large, regenerable) ---
 tests/validation/bags/
 *.db3

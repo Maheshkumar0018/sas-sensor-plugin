@@ -1,6 +1,6 @@
 # 001 — Workspace and toolchain
 
-- Status: In progress — waiting on `libfftw3-dev` install (needs sudo)
+- Status: Done (2026-10-15), with the FFTW exception in ADR-0009
 - REQs: REQ-101
 - Depends on: —
 
@@ -37,3 +37,6 @@ Build scaffold for all four packages.
 - 2026-10-15: `rosdep check` fails only on `libfftw3-3`, `libfftw3-dev` (not installed; install
   needs sudo).
 - 2026-10-15: License set to Apache-2.0 in all `package.xml` files; `LICENSE` added. ADR-0008
+- 2026-10-15: `sudo` not available for `libfftw3-dev`. FFTW dev files installed into `.deps/fftw` by
+  `scripts/setup_local_fftw.sh` (ADR-0009). All 4 packages build; `rosdep check` lists only
+  `libfftw3-dev` as missing, which ADR-0009 accepts. Plan closed.

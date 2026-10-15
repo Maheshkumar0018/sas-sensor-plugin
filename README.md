@@ -30,6 +30,7 @@ subscribes to `/sas/ping`.
 ```bash
 sudo apt install ros-humble-gazebo-ros-pkgs ros-humble-xacro \
                  ros-humble-robot-state-publisher libfftw3-dev python3-numpy
+# No root? Instead of libfftw3-dev above: scripts/setup_local_fftw.sh  (ADR-0009)
 source /opt/ros/humble/setup.bash
 cd sas_ws
 colcon build --symlink-install --cmake-args -DCMAKE_BUILD_TYPE=Release

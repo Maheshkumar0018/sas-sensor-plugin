@@ -6,9 +6,9 @@ tests for a REQ. Code and test columns stay `—` until the work exists.
 
 | REQ | ADR | Plan | Code | Test | Status |
 |-----|-----|------|------|------|--------|
-| REQ-001 | — | 003 | — | unit: chirp; V1 | Draft |
-| REQ-002 | — | 003 | — | V1 | Draft |
-| REQ-003 | — | 003 | — | unit: Sinc; V3 | Draft |
+| REQ-001 | — | 003 | `dsp.hpp` `ChirpSamples`; `sas_sonar_plugin.cpp` `SetupDsp` | `test_dsp` Chirp.UnitModulusAndSweep; V1 | Implemented |
+| REQ-002 | — | 003 | `dsp.hpp` `ReceiverPositionsY`; `sas_sonar_plugin.cpp` `Load` | `test_dsp` Array.ReceiverPositionsCentred; V1 | Implemented |
+| REQ-003 | — | 003 | `dsp.hpp` `Sinc`, `BeamPattern` (applied in plan 005) | `test_dsp` Beam.SincAndFirstNull; V3 | Draft |
 | REQ-004 | — | 004 | — | V4 | Draft |
 | REQ-005 | 0004 | 004 | — | unit: CellKey/SplitMix64; V4 | Draft |
 | REQ-006 | — | 005 | — | unit: Thorp; V2 | Draft |
@@ -20,6 +20,6 @@ tests for a REQ. Code and test columns stay `—` until the work exists.
 | REQ-012 | 0004 | 005, 006 | — | V6 | Draft |
 | REQ-013 | — | 006 | — | plan 006 exit check | Draft |
 | REQ-014 | 0005 | 007 | — | plan 007 exit check | Draft |
-| REQ-101 | — | 001 | `src/*/package.xml`, `src/*/CMakeLists.txt` | build | Draft |
+| REQ-101 | 0008, 0009 | 001 | `src/*/package.xml`, `src/*/CMakeLists.txt` | build | Draft |
 | REQ-102 | — | 007 | — | CPU run | Draft |
 | REQ-103 | — | 009 | — | perf run | Draft |

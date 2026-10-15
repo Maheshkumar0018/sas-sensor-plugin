@@ -12,7 +12,6 @@
   <depend>gazebo_dev</depend>
   <depend>gazebo_ros</depend>
   <depend>rclcpp</depend>
-  <depend>geometry_msgs</depend>
   <depend>sas_msgs</depend>
   <depend>libfftw3</depend>
 
@@ -20,5 +19,6 @@
 
   <export>
     <build_type>ament_cmake</build_type>
+    <gazebo_ros plugin_path="${prefix}/lib"/>
   </export>
 </package>

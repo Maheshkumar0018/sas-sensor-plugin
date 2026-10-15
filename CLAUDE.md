@@ -42,6 +42,7 @@ that span packages.
 ## Commands
 
 ```bash
+scripts/setup_local_fftw.sh               # only if libfftw3-dev is not installed (ADR-0009)
 source /opt/ros/humble/setup.bash
 export PYTEST_DISABLE_PLUGIN_AUTOLOAD=1   # see "Environment notes"
 colcon build --symlink-install --cmake-args -DCMAKE_BUILD_TYPE=Release
@@ -58,6 +59,12 @@ ros2 launch sas_bringup sas_sensor.launch.py         # run sensor in test world
   with "The Python module 'pytest' was not found". Export `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1` before
   `colcon build` and `colcon test`. If a pytest target is missing, rebuild with
   `--cmake-force-configure`.
+
+- `libfftw3-dev` is not installed system-wide here and sudo is unavailable. FFTW headers come
+  from `.deps/fftw` via `scripts/setup_local_fftw.sh` (ADR-0009). `rosdep check` reporting
+  `libfftw3-dev` missing is expected.
+- Smoke run without launch: `GAZEBO_PLUGIN_PATH=$PWD/install/sas_gazebo/lib gzserver --lockstep
+  src/sas_gazebo/test/worlds/sas_smoke.world`.
 
 ## Working rules
 
