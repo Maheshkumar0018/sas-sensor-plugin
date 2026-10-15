@@ -13,6 +13,8 @@ Sections in this order, only when non-empty: Added, Changed, Deprecated, Removed
 ## [Unreleased]
 
 ### Added
+- `sas_gazebo`: raw echo synthesis (`synth.hpp`/`synth.cpp`, `EchoSynthesizer`): beams, Lambert, spherical spreading, Thorp absorption, moving-receiver delay (two iterations), carrier phase, band-limited fractional delay, chirp convolution, seeded receiver noise, OpenMP; 8 gtests. SDF params `element_height`, `tx_height`, `absorption_db_per_m`. plan 005, REQ-003, REQ-006, REQ-008, REQ-009, REQ-012
+- `tests/validation/sas_tools.py` (offline matched filter from message fields) and `check_delay.py` (per-element delay check). Smoke world has a plate target. plan 005
 - `sas_gazebo`: world-fixed scatterer field (`scatter.hpp`/`scatter.cpp`): surface reconstruction from the ray image, shadow rejection, voxels centred on multiples of `cell_size` with hash-derived jitter and speckle, μ from `<laser_retro>`; 10 gtests; SDF params `cell_size`, `max_incidence_deg`, `default_backscatter_db`, `debug_scatterers`. plan 004, REQ-004, REQ-005, REQ-007
 - Smoke world can move along-track via `/sas/cmd_vel` (stock `planar_move`). plan 004
 - `scripts/setup_local_fftw.sh`: FFTW dev files into `.deps/` without root; CMake uses them only when no system install exists. ADR-0009

@@ -11,15 +11,18 @@ processing (ADRs 0001, 0005).
 - Noise generator seeded from `(seed, ping_id, element)`; each OpenMP thread uses its own.
 - Results must not depend on thread count or order. No floating-point reductions across threads
   into shared buffers.
-- Use sim time, never wall-clock time.
-- FFTW plans and chirp spectrum created once in `SetupDsp()`, not per ping.
+- Use sim time for anything that reaches the output. `steady_clock` is allowed only for
+  diagnostic timing logs.
+- FFTW plans and chirp spectrum created once in the `EchoSynthesizer` constructor, not per ping.
+  Plans use `FFTW_ESTIMATE` (MEASURE makes rounding depend on timing).
 - Design checks (range ambiguity, DPCA) only warn; they never change output.
 
 ## Style
 
 - C++17, `gazebo::` plugin conventions, `RCLCPP_*` logging through the `gazebo_ros::Node`.
-- Pure maths helpers (`Sinc`, `ThorpDbPerMeter`, `CellKey`, `SplitMix64`, `SolveDelay`, chirp
-  generation) are free functions in a header so gtest can call them without Gazebo.
+- Physics lives in the Gazebo-free `sas_core` library (`dsp.hpp`, `scatter.hpp/.cpp`,
+  `synth.hpp/.cpp`) so gtest can call it without Gazebo. The plugin only reads Gazebo state and
+  publishes.
 - Comment each physics line with the equation it implements and the REQ ID.
 
 ## Tests

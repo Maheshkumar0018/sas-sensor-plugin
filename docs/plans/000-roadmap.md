@@ -9,7 +9,7 @@ when its exit check passes. Do them in order.
 | 002 | `SasPing` message | REQ-010, REQ-011 | Done |
 | 003 | Plugin skeleton: waveform, array, beams | REQ-001, 002, 003 | Done |
 | 004 | Scene reconstruction and scatterer field | REQ-004, 005, 007 | Done |
-| 005 | Propagation and echo synthesis | REQ-006, 008, 009, 012 | Not started |
+| 005 | Propagation and echo synthesis | REQ-006, 008, 009, 012 | Done |
 | 006 | Platform state, timing, design checks | REQ-011, 012, 013 | Not started |
 | 007 | Description, test worlds, launch | REQ-014, 102 | Not started |
 | 008 | Sensor validation V1–V7 | all functional | Not started |

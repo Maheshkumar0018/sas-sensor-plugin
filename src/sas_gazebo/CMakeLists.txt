@@ -14,6 +14,7 @@ find_package(gazebo_ros REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(sas_msgs REQUIRED)
 find_package(ignition-math6 REQUIRED)
+find_package(OpenMP REQUIRED)
 find_package(PkgConfig REQUIRED)
 # Without root, FFTW dev files may live in <workspace>/.deps/fftw (ADR-0009,
 # scripts/setup_local_fftw.sh). A system install is used when present.
@@ -24,18 +25,20 @@ if(EXISTS "${SAS_LOCAL_FFTW_PC}" AND NOT EXISTS "/usr/include/fftw3.h")
 endif()
 pkg_check_modules(FFTW3F REQUIRED IMPORTED_TARGET fftw3f)
 
-add_library(sas_scatter STATIC src/scatter.cpp)
-set_target_properties(sas_scatter PROPERTIES POSITION_INDEPENDENT_CODE ON)
-target_include_directories(sas_scatter PUBLIC
+# Gazebo-free core (scatterer field + echo synthesis), shared by the plugin and the unit tests.
+add_library(sas_core STATIC src/scatter.cpp src/synth.cpp)
+set_target_properties(sas_core PROPERTIES POSITION_INDEPENDENT_CODE ON)
+target_include_directories(sas_core PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>)
-target_link_libraries(sas_scatter ignition-math6::ignition-math6)
+target_link_libraries(sas_core PUBLIC
+  ignition-math6::ignition-math6 PkgConfig::FFTW3F OpenMP::OpenMP_CXX)
 
 add_library(sas_sonar_plugin SHARED src/sas_sonar_plugin.cpp)
 target_include_directories(sas_sonar_plugin PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:include>)
 ament_target_dependencies(sas_sonar_plugin gazebo_dev gazebo_ros rclcpp sas_msgs)
-target_link_libraries(sas_sonar_plugin sas_scatter PkgConfig::FFTW3F)
+target_link_libraries(sas_sonar_plugin sas_core)
 
 install(TARGETS sas_sonar_plugin
   LIBRARY DESTINATION lib
@@ -48,7 +51,9 @@ if(BUILD_TESTING)
   ament_add_gtest(test_dsp test/test_dsp.cpp)
   target_include_directories(test_dsp PRIVATE include)
   ament_add_gtest(test_scatter test/test_scatter.cpp)
-  target_link_libraries(test_scatter sas_scatter)
+  target_link_libraries(test_scatter sas_core)
+  ament_add_gtest(test_synth test/test_synth.cpp)
+  target_link_libraries(test_synth sas_core)
 endif()
 
 ament_export_include_directories(include)

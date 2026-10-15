@@ -2,16 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 // Synthetic Aperture Sonar sensor plugin for Gazebo Classic 11.
-// Plan 003: parameter parsing, array geometry, chirp spectrum, and a publisher
-// that emits correctly shaped SasPing messages with a zero echo.
-
-#include <fftw3.h>
+// Each sensor update is one ping: read the ray image, build the world-fixed scatterer field
+// (scatter.hpp), synthesise the raw multi-element echo (synth.hpp), publish sas_msgs/SasPing.
 
 #include <algorithm>
 #include <chrono>
 #include <cmath>
-#include <complex>
-#include <cstring>
 #include <memory>
 #include <string>
 #include <vector>
@@ -28,9 +24,12 @@
 
 #include "sas_gazebo/dsp.hpp"
 #include "sas_gazebo/scatter.hpp"
+#include "sas_gazebo/synth.hpp"
 
 namespace sas_gazebo
 {
+
+using ignition::math::Vector3d;
 
 template<typename SensorT>
 void ReadScan(const std::shared_ptr<SensorT> & s, scatter::Scan & scan)
@@ -56,11 +55,6 @@ public:
   ~SasSonarPlugin() override
   {
     update_conn_.reset();
-    for (auto * b : buf_) {
-      fftwf_free(b);
-    }
-    if (fwd_) {fftwf_destroy_plan(fwd_);}
-    if (inv_) {fftwf_destroy_plan(inv_);}
   }
 
   void Load(gazebo::sensors::SensorPtr sensor, sdf::ElementPtr sdf) override
@@ -95,8 +89,11 @@ public:
 
     // REQ-002: transmitter at array origin, receivers along array y-axis.
     rx_y_ = dsp::ReceiverPositionsY(p_.num_elements, p_.element_spacing);
-
-    SetupDsp();
+    std::vector<Vector3d> rx_pos;
+    for (double y : rx_y_) {
+      rx_pos.emplace_back(0.0, y, 0.0);
+    }
+    synth_ = std::make_unique<synth::EchoSynthesizer>(yp_, Vector3d::Zero, rx_pos);
 
     pub_ = ros_node_->create_publisher<sas_msgs::msg::SasPing>(
       p_.topic, rclcpp::QoS(50).reliable());
@@ -106,10 +103,11 @@ public:
     RCLCPP_INFO(
       ros_node_->get_logger(),
       "SAS sonar ready on %s: fc=%.1f kHz B=%.1f kHz Tp=%.2f ms fs=%.1f kHz N=%d d=%.3f m "
-      "PRF=%.2f Hz Ns=%d Nfft=%d sensor=%s",
+      "PRF=%.2f Hz Ns=%d Nfft=%d cell=%.3f m alpha=%.4f dB/m sensor=%s",
       p_.topic.c_str(), p_.center_frequency / 1e3, p_.bandwidth / 1e3, p_.pulse_length * 1e3,
-      p_.sample_rate / 1e3, p_.num_elements, p_.element_spacing, sensor_->UpdateRate(), ns_,
-      nfft_, gpu_ray_ ? "gpu_ray" : "ray");
+      p_.sample_rate / 1e3, p_.num_elements, p_.element_spacing, sensor_->UpdateRate(),
+      synth_->num_samples(), synth_->nfft(), sp_.cell_size, synth_->absorption_db_per_m(),
+      gpu_ray_ ? "gpu_ray" : "ray");
   }
 
 private:
@@ -139,6 +137,8 @@ private:
     get_d("noise_std", p_.noise_std);
     get_i("seed", p_.seed);
     get_s("topic", p_.topic);
+    get_s("frame_id", p_.frame_id);
+
     // Scene (plan 004). REQ-004, REQ-005, REQ-007
     double cell = sp_.cell_size, max_inc_deg = 88.0, bs_db = -27.0;
     get_d("cell_size", cell);
@@ -150,36 +150,27 @@ private:
     sp_.min_range = p_.min_range;
     sp_.max_range = p_.max_range;
     sp_.seed = static_cast<uint64_t>(static_cast<uint32_t>(p_.seed));
-    if (sdf->HasElement("debug_scatterers")) {debug_scatterers_ = sdf->Get<bool>("debug_scatterers");}
-    get_s("frame_id", p_.frame_id);
-  }
-
-  // REQ-001: chirp spectrum computed once and kept resident.
-  void SetupDsp()
-  {
-    ns_ = dsp::CeilSamples(2.0 * p_.max_range / p_.sound_speed, p_.sample_rate);
-    const auto chirp = dsp::ChirpSamples(p_.sample_rate, p_.bandwidth, p_.pulse_length);
-    nfft_ = dsp::NextPow2(ns_ + static_cast<int>(chirp.size()) + 8);
-
-    buf_.resize(static_cast<size_t>(p_.num_elements));
-    for (auto & b : buf_) {
-      b = static_cast<fftwf_complex *>(fftwf_malloc(sizeof(fftwf_complex) * nfft_));
+    if (sdf->HasElement("debug_scatterers")) {
+      debug_scatterers_ = sdf->Get<bool>("debug_scatterers");
     }
-    // FFTW_ESTIMATE, not FFTW_MEASURE: the plan (and so the rounding) must not depend on
-    // timing measurements, otherwise reruns are not bit-identical (REQ-012, ADR-0004).
-    fwd_ = fftwf_plan_dft_1d(nfft_, buf_[0], buf_[0], FFTW_FORWARD, FFTW_ESTIMATE);
-    inv_ = fftwf_plan_dft_1d(nfft_, buf_[0], buf_[0], FFTW_BACKWARD, FFTW_ESTIMATE);
 
-    std::memset(buf_[0], 0, sizeof(fftwf_complex) * nfft_);
-    for (size_t n = 0; n < chirp.size(); ++n) {
-      buf_[0][n][0] = chirp[n].real();
-      buf_[0][n][1] = chirp[n].imag();
-    }
-    fftwf_execute_dft(fwd_, buf_[0], buf_[0]);
-    chirp_spec_.resize(static_cast<size_t>(nfft_));
-    for (int n = 0; n < nfft_; ++n) {
-      chirp_spec_[static_cast<size_t>(n)] = std::complex<float>(buf_[0][n][0], buf_[0][n][1]);
-    }
+    // Synthesis (plan 005). REQ-003, REQ-006, REQ-008, REQ-009
+    yp_.sound_speed = p_.sound_speed;
+    yp_.center_frequency = p_.center_frequency;
+    yp_.bandwidth = p_.bandwidth;
+    yp_.pulse_length = p_.pulse_length;
+    yp_.sample_rate = p_.sample_rate;
+    yp_.min_range = p_.min_range;
+    yp_.max_range = p_.max_range;
+    yp_.element_length = p_.element_length;
+    yp_.tx_length = p_.tx_length;
+    get_d("element_height", yp_.element_height);
+    get_d("tx_height", yp_.tx_height);
+    yp_.source_level = p_.source_level;
+    get_d("absorption_db_per_m", yp_.absorption_db_per_m);  // default: Thorp at fc
+    yp_.noise_std = p_.noise_std;
+    yp_.cell_size = sp_.cell_size;
+    yp_.seed = sp_.seed;
   }
 
   void OnScan()
@@ -192,13 +183,22 @@ private:
     // Array frame in world: sensor pose relative to its link, composed with the link pose.
     // Plan 006 also publishes it in SasPing (REQ-011).
     const auto array_pose = sensor_->Pose() + link_->WorldPose();
-    const auto t_start = std::chrono::steady_clock::now();
+    // Receiver motion during propagation (REQ-008) uses the link velocity from plan 006.
+    const Vector3d vel = Vector3d::Zero;
+
+    const auto t0 = std::chrono::steady_clock::now();  // diagnostics only, never in output
     scatter::BuildScatterers(scan_, array_pose, sp_, ws_, scatterers_);
-    if (debug_scatterers_) {
-      LogScatterers(std::chrono::duration<double>(std::chrono::steady_clock::now() - t_start).count());
-    }
+    const auto t1 = std::chrono::steady_clock::now();
 
     sas_msgs::msg::SasPing msg;
+    synth_->Synthesize(scatterers_, array_pose, vel, ping_id_, msg.data_real, msg.data_imag);
+    const auto t2 = std::chrono::steady_clock::now();
+    if (debug_scatterers_) {
+      LogScatterers(
+        std::chrono::duration<double>(t1 - t0).count(),
+        std::chrono::duration<double>(t2 - t1).count());
+    }
+
     msg.header.stamp = gazebo_ros::Convert<builtin_interfaces::msg::Time>(world_->SimTime());
     msg.header.frame_id = p_.frame_id;
     msg.ping_id = ping_id_++;
@@ -223,16 +223,13 @@ private:
     msg.pose.orientation.w = 1.0;
 
     msg.num_elements = static_cast<uint32_t>(p_.num_elements);
-    msg.num_samples = static_cast<uint32_t>(ns_);
-    const size_t total = static_cast<size_t>(p_.num_elements) * static_cast<size_t>(ns_);
-    msg.data_real.assign(total, 0.0f);  // echo synthesis: plan 005
-    msg.data_imag.assign(total, 0.0f);
+    msg.num_samples = static_cast<uint32_t>(synth_->num_samples());
 
     pub_->publish(msg);
   }
 
-  // Debug summary for the plan 004 exit check: count, z range, and one tracked voxel.
-  void LogScatterers(double build_s)
+  // Debug summary: count, z range, timings, and one tracked voxel (plan 004/005 exit checks).
+  void LogScatterers(double build_s, double synth_s)
   {
     double zmin = 1e9, zmax = -1e9;
     for (const auto & s : scatterers_) {
@@ -249,16 +246,18 @@ private:
     if (tracked) {
       RCLCPP_INFO(
         ros_node_->get_logger(),
-        "ping %lu: scatterers=%zu z=[%.3f, %.3f] build=%.1f ms | voxel %lx pos=(%.9f, %.9f, %.9f) "
-        "speckle=(%.9f, %.9f) mu=%.4g",
+        "ping %lu: scatterers=%zu z=[%.3f, %.3f] build=%.1f ms synth=%.1f ms | voxel %lx "
+        "pos=(%.9f, %.9f, %.9f) speckle=(%.9f, %.9f) mu=%.4g",
         static_cast<unsigned long>(ping_id_), scatterers_.size(), zmin, zmax, build_s * 1e3,
-        static_cast<unsigned long>(tracked_key_), tracked->pos.X(), tracked->pos.Y(),
-        tracked->pos.Z(), tracked->speckle.real(), tracked->speckle.imag(), tracked->mu);
+        synth_s * 1e3, static_cast<unsigned long>(tracked_key_), tracked->pos.X(),
+        tracked->pos.Y(), tracked->pos.Z(), tracked->speckle.real(), tracked->speckle.imag(),
+        tracked->mu);
     } else {
       RCLCPP_INFO(
-        ros_node_->get_logger(), "ping %lu: scatterers=%zu z=[%.3f, %.3f] build=%.1f ms | voxel %lx not seen",
+        ros_node_->get_logger(),
+        "ping %lu: scatterers=%zu z=[%.3f, %.3f] build=%.1f ms synth=%.1f ms | voxel %lx not seen",
         static_cast<unsigned long>(ping_id_), scatterers_.size(), zmin, zmax, build_s * 1e3,
-        static_cast<unsigned long>(tracked_key_));
+        synth_s * 1e3, static_cast<unsigned long>(tracked_key_));
     }
   }
 
@@ -273,12 +272,6 @@ private:
 
   dsp::SonarParams p_;
   std::vector<double> rx_y_;
-  int ns_ = 0;
-  int nfft_ = 0;
-  std::vector<fftwf_complex *> buf_;
-  fftwf_plan fwd_ = nullptr;
-  fftwf_plan inv_ = nullptr;
-  std::vector<std::complex<float>> chirp_spec_;
   uint64_t ping_id_ = 0;
 
   scatter::Params sp_;
@@ -287,6 +280,9 @@ private:
   std::vector<scatter::Scatterer> scatterers_;
   bool debug_scatterers_ = false;
   uint64_t tracked_key_ = 0;
+
+  synth::Params yp_;
+  std::unique_ptr<synth::EchoSynthesizer> synth_;
 };
 
 GZ_REGISTER_SENSOR_PLUGIN(SasSonarPlugin)

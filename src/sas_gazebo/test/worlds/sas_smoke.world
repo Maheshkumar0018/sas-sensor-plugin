@@ -1,9 +1,23 @@
 <?xml version="1.0"?>
-<!-- Smoke test (plans 003-004): one sonar 10 m over a ground plane. Not a validation world.
+<!-- Smoke test (plans 003-005): one sonar 10 m over a ground plane plus one plate target.
+     Not a validation world.
      Stationary by default; publish geometry_msgs/Twist on /sas/cmd_vel to move it. -->
 <sdf version="1.6">
   <world name="sas_smoke">
     <include><uri>model://ground_plane</uri></include>
+    <!-- Plate target for the plan 005 delay check: 0.6 x 0.6 x 0.02 m, centred 6 m down the
+         boresight and turned to face the sonar, so every voxel is at nearly the same range
+         (front face 5.99 m). A sphere is a poor point target here: its visible cap spans
+         ~25 cm of range and speckle moves the peak by several samples between elements.
+         Clear of the first ground echo at ~10.9 m. -->
+    <model name="plate_target">
+      <static>true</static>
+      <pose>5.6362 0 7.9426 0 0.35 0</pose>
+      <link name="link">
+        <collision name="c"><geometry><box><size>0.02 0.6 0.6</size></box></geometry><laser_retro>1.0</laser_retro></collision>
+        <visual name="v"><geometry><box><size>0.02 0.6 0.6</size></box></geometry></visual>
+      </link>
+    </model>
     <model name="sonar_mount">
       <pose>0 0 10 0 0.35 0</pose>
       <plugin name="mover" filename="libgazebo_ros_planar_move.so">

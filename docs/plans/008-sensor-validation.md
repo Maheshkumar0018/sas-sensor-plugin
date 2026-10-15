@@ -18,7 +18,7 @@ the bags).
 
 | ID | Setup | Pass criterion | REQs |
 |----|-------|----------------|------|
-| V1 | Point target, static | Matched-filter peak at `2R/c ± 1 sample` per element | 001, 002, 009 |
+| V1 | Facing plate target (not a sphere, see plan 005 log), static | Matched-filter peak at `2R/c ± 1 sample` per element | 001, 002, 009 |
 | V2 | Point target at ≥3 ranges | Peak amplitude follows `1/R² · 10^{−α·2R/20}` within 1 dB | 006, 007 |
 | V3 | Rotate carrier across target | Amplitude vs angle matches `b_tx·b_rx` within 1 dB to first null | 003 |
 | V4 | Moving carrier, seabed world | Revisited voxel identical; point-target phase follows `e^{−j2πf_c τ(t)}` from `pose` | 004, 005 |
