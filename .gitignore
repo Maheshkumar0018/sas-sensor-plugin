@@ -1,0 +1,43 @@
+# Commit policy: see "Git: what to commit" in CLAUDE.md.
+# Commit sources, docs, shared Claude config. Keep generated, personal, and large data local.
+
+# --- colcon build output ---
+build/
+install/
+log/
+
+# --- recorded data (large, regenerable) ---
+tests/validation/bags/
+*.db3
+*.mcap
+*.bag
+*.npy
+*.npz
+
+# --- test / tool output ---
+.pytest_cache/
+__pycache__/
+*.pyc
+.coverage
+htmlcov/
+perf.data*
+core
+core.*
+vgcore.*
+
+# --- personal Claude Code config (shared config in .claude/settings.json and .claude/commands/ is committed) ---
+.claude/settings.local.json
+CLAUDE.local.md
+
+# --- IDE / editor ---
+.vscode/
+.idea/
+.cache/
+compile_commands.json
+*.swp
+*~
+.DS_Store
+
+# --- secrets / environment ---
+.env
+*.env

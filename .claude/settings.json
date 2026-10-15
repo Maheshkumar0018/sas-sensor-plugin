@@ -1,0 +1,23 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(colcon build:*)",
+      "Bash(colcon test:*)",
+      "Bash(colcon test-result:*)",
+      "Bash(colcon list:*)",
+      "Bash(rosdep check:*)",
+      "Bash(ros2 interface:*)",
+      "Bash(ros2 topic:*)",
+      "Bash(ros2 pkg:*)",
+      "Bash(ros2 bag info:*)",
+      "Bash(xacro:*)",
+      "Bash(check_urdf:*)",
+      "Bash(pytest:*)",
+      "Bash(python3 -m pytest:*)"
+    ],
+    "deny": [
+      "Edit(docs/reference/**)",
+      "Write(docs/reference/**)"
+    ]
+  }
+}
