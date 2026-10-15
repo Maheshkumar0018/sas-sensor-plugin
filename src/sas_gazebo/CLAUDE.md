@@ -16,6 +16,9 @@ processing (ADRs 0001, 0005).
 - FFTW plans and chirp spectrum created once in the `EchoSynthesizer` constructor, not per ping.
   Plans use `FFTW_ESTIMATE` (MEASURE makes rounding depend on timing).
 - Design checks (range ambiguity, DPCA) only warn; they never change output.
+- Never read link pose or velocity in `OnScan()`. Physics keeps stepping during the callback; use
+  the per-step state history looked up at `LastMeasurementTime()` (ADR-0010).
+- Throttled logs use `steady_clock_`, not the node clock (sim time, 0 without `/clock`).
 
 ## Style
 

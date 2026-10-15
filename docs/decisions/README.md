@@ -38,3 +38,4 @@ Architecture Decision Records (ADRs), format after Michael Nygard. One file per 
 | 0007 | Change tracking: changelog, decision log, bug records | Accepted | 2026-10-15 | — |
 | 0008 | License: Apache-2.0 | Accepted | 2026-10-15 | — |
 | 0009 | Workspace-local FFTW dev files without root | Accepted | 2026-10-15 | — |
+| 0010 | Ping timing and transmit-time state enforced by the plugin | Accepted | 2026-10-15 | — |

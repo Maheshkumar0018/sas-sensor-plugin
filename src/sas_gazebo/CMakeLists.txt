@@ -37,7 +37,8 @@ add_library(sas_sonar_plugin SHARED src/sas_sonar_plugin.cpp)
 target_include_directories(sas_sonar_plugin PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:include>)
-ament_target_dependencies(sas_sonar_plugin gazebo_dev gazebo_ros rclcpp sas_msgs)
+find_package(geometry_msgs REQUIRED)
+ament_target_dependencies(sas_sonar_plugin gazebo_dev gazebo_ros rclcpp geometry_msgs sas_msgs)
 target_link_libraries(sas_sonar_plugin sas_core)
 
 install(TARGETS sas_sonar_plugin

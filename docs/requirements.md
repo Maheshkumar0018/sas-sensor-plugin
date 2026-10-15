@@ -20,9 +20,9 @@ Status values: `Draft` → `Approved` → `Implemented` → `Verified`.
 | REQ-008 | Account for receiver motion during propagation (no stop-and-hop) when computing each element's delay. | F8 | V5 | Implemented |
 | REQ-009 | Output the raw received baseband echo per element with additive complex Gaussian receiver noise. No matched filtering in the sensor. | F9 | V1, V7 | Implemented |
 | REQ-010 | Publish one `sas_msgs/SasPing` per transmit on a configurable topic. The message carries all waveform and geometry parameters needed to interpret the echo without the SDF. | F12 | plan 002 exit check | Implemented |
-| REQ-011 | Report the ground-truth world pose and linear velocity of the array frame at transmit time. Never add navigation error. | F10 (part) | plan 006 exit check | Draft |
+| REQ-011 | Report the ground-truth world pose and linear velocity of the array frame at transmit time. Never add navigation error. | F10 (part) | plan 006 exit check | Implemented |
 | REQ-012 | Produce bit-identical output for the same world, seed, and parameters, under lockstep simulation. | F15 | V6 | Draft |
-| REQ-013 | Warn (without changing behaviour) on range ambiguity (`2·max_range/c > PRI`) and DPCA under-sampling (`|v|·PRI > N·d/2`). | F15 | plan 006 exit check | Draft |
+| REQ-013 | Warn (without changing behaviour) on range ambiguity (`2·max_range/c > PRI`) and DPCA under-sampling (`|v_along|·PRI > N·d/2`, along-track speed). | F15 | plan 006 exit check | Implemented |
 | REQ-014 | Provide a reusable `sas_array.xacro` macro so any vehicle model can mount the sensor by including it with a parent link. | — | plan 007 exit check | Draft |
 
 ## Non-functional

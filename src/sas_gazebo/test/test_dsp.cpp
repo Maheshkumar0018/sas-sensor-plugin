@@ -10,6 +10,9 @@
 #include "sas_gazebo/dsp.hpp"
 
 using sas_gazebo::dsp::BeamPattern;
+using sas_gazebo::dsp::DpcaViolated;
+using sas_gazebo::dsp::PingIntervalOff;
+using sas_gazebo::dsp::RangeAmbiguous;
 using sas_gazebo::dsp::ChirpSamples;
 using sas_gazebo::dsp::NextPow2;
 using sas_gazebo::dsp::ReceiverPositionsY;
@@ -82,4 +85,28 @@ TEST(Fft, NextPow2)
   EXPECT_EQ(NextPow2(1), 1);
   EXPECT_EQ(NextPow2(3200 + 200 + 8), 4096);
   EXPECT_EQ(NextPow2(4096), 4096);
+}
+
+// REQ-013: defaults (60 m, 1500 m/s, 10 Hz) are unambiguous; 80 m is not (2*80/1500 > 0.1 s).
+TEST(DesignChecks, RangeAmbiguity)
+{
+  EXPECT_FALSE(RangeAmbiguous(60.0, 1500.0, 0.1));
+  EXPECT_FALSE(RangeAmbiguous(75.0, 1500.0, 0.1));  // exactly at the limit
+  EXPECT_TRUE(RangeAmbiguous(80.0, 1500.0, 0.1));
+}
+
+// REQ-013: 16 x 0.04 m array at 10 Hz allows N d / (2 PRI) = 3.2 m/s along-track.
+TEST(DesignChecks, DpcaLimit)
+{
+  EXPECT_FALSE(DpcaViolated(1.5, 0.1, 16, 0.04));
+  EXPECT_FALSE(DpcaViolated(3.19, 0.1, 16, 0.04));
+  EXPECT_TRUE(DpcaViolated(3.21, 0.1, 16, 0.04));
+  EXPECT_TRUE(DpcaViolated(-3.21, 0.1, 16, 0.04));  // direction does not matter
+}
+
+TEST(DesignChecks, PingInterval)
+{
+  EXPECT_FALSE(PingIntervalOff(0.1, 0.1));
+  EXPECT_FALSE(PingIntervalOff(0.1009, 0.1));
+  EXPECT_TRUE(PingIntervalOff(0.2, 0.1));  // a skipped update
 }

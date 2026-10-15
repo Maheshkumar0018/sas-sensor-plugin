@@ -16,9 +16,9 @@ tests for a REQ. Code and test columns stay `—` until the work exists.
 | REQ-008 | 0005 | 005, 006 | `synth.hpp` `SolveDelayFromTx` (velocity fed in plan 006) | `test_synth` DelaySolverStaticExactMovingSubMicron, ReceiverMotionShiftsDelayAsModelled; V5 | Implemented |
 | REQ-009 | 0002 | 005 | `synth.cpp` `EchoSynthesizer::Synthesize` | `test_synth` PointTargetDelayOnEveryElement, NoiseStatisticsAndReproducibility; `tests/validation/check_delay.py`; V1, V7 | Implemented |
 | REQ-010 | 0002, 0003 | 002 | `src/sas_msgs/msg/SasPing.msg` | `src/sas_msgs/test/test_sasping_contract.py`; plan 002 exit check | Implemented |
-| REQ-011 | 0003, 0005 | 002 (field), 006 (fill) | — | plan 006 exit check | Draft |
-| REQ-012 | 0004 | 005, 006 | `FFTW_ESTIMATE`; per-element threads; seeded noise | `test_synth` IndependentOfThreadCount; `test_scatter` SameInputSameOutputOrder; V6 | Draft |
-| REQ-013 | — | 006 | — | plan 006 exit check | Draft |
+| REQ-011 | 0003, 0005, 0010 | 002 (field), 006 (fill) | plugin `OnWorldUpdateEnd`, `LookupState`, `OnScan` | `tests/validation/check_state.py`; plan 006 exit check | Implemented |
+| REQ-012 | 0004, 0010 | 005, 006 | `FFTW_ESTIMATE`; per-element threads; seeded noise; strict-rate gate / `--lockstep`; state history | `test_synth` IndependentOfThreadCount; `test_scatter` SameInputSameOutputOrder; V6 | Draft |
+| REQ-013 | — | 006 | `dsp.hpp` `RangeAmbiguous`, `DpcaViolated`; plugin `CheckDpca`, `CheckTiming` | `test_dsp` DesignChecks.*; plan 006 exit check | Implemented |
 | REQ-014 | 0005 | 007 | — | plan 007 exit check | Draft |
 | REQ-101 | 0008, 0009 | 001 | `src/*/package.xml`, `src/*/CMakeLists.txt` | build | Draft |
 | REQ-102 | — | 007 | — | CPU run | Draft |

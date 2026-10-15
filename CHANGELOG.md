@@ -13,6 +13,10 @@ Sections in this order, only when non-empty: Added, Changed, Deprecated, Removed
 ## [Unreleased]
 
 ### Added
+- `SasPing.pose`, `velocity`, and stamp now carry the ground-truth array state at the scan's measurement time, from a per-physics-step state history. plan 006, REQ-011, ADR-0010
+- Strict-rate gate (`strict_rate`, default on for CPU `ray`) keeps one ping per PRI; `gpu_ray` uses `gzserver --lockstep`. plan 006, REQ-012, ADR-0010
+- Design-check warnings: range ambiguity at load, DPCA along-track sampling per ping, ping interval vs PRI. plan 006, REQ-013
+- `tests/validation/check_state.py` (stamp, pose, velocity check). plan 006
 - `sas_gazebo`: raw echo synthesis (`synth.hpp`/`synth.cpp`, `EchoSynthesizer`): beams, Lambert, spherical spreading, Thorp absorption, moving-receiver delay (two iterations), carrier phase, band-limited fractional delay, chirp convolution, seeded receiver noise, OpenMP; 8 gtests. SDF params `element_height`, `tx_height`, `absorption_db_per_m`. plan 005, REQ-003, REQ-006, REQ-008, REQ-009, REQ-012
 - `tests/validation/sas_tools.py` (offline matched filter from message fields) and `check_delay.py` (per-element delay check). Smoke world has a plate target. plan 005
 - `sas_gazebo`: world-fixed scatterer field (`scatter.hpp`/`scatter.cpp`): surface reconstruction from the ray image, shadow rejection, voxels centred on multiples of `cell_size` with hash-derived jitter and speckle, μ from `<laser_retro>`; 10 gtests; SDF params `cell_size`, `max_incidence_deg`, `default_backscatter_db`, `debug_scatterers`. plan 004, REQ-004, REQ-005, REQ-007
@@ -26,7 +30,7 @@ Sections in this order, only when non-empty: Added, Changed, Deprecated, Removed
 - Requirements REQ-001…014 and REQ-101…103. `docs/requirements.md`
 - Architecture overview and traceability matrix. `docs/architecture.md`, `docs/traceability.md`
 - Implementation plans 000–009 for the sensor-only build. `docs/plans/`
-- Decision records ADR-0001…0009 and decision log. `docs/decisions/`
+- Decision records ADR-0001…0010 and decision log. `docs/decisions/`
 - Change-tracking policy: changelog, decision log, bug records. ADR-0007
 - Git commit policy in `CLAUDE.md` and `.gitignore`.
 - Project overview deck, self-contained HTML, 11 slides. `docs/presentations/sas_sensor_overview.html`

@@ -7,17 +7,22 @@
 
 #include <algorithm>
 #include <chrono>
+#include <condition_variable>
+#include <deque>
+#include <mutex>
 #include <cmath>
 #include <memory>
 #include <string>
 #include <vector>
 
+#include <gazebo/common/Events.hh>
 #include <gazebo/common/Plugin.hh>
 #include <gazebo/physics/physics.hh>
 #include <gazebo/sensors/GpuRaySensor.hh>
 #include <gazebo/sensors/RaySensor.hh>
 #include <gazebo/sensors/Sensor.hh>
 #include <gazebo_ros/conversions/builtin_interfaces.hpp>
+#include <gazebo_ros/conversions/geometry_msgs.hpp>
 #include <gazebo_ros/node.hpp>
 #include <rclcpp/rclcpp.hpp>
 #include <sas_msgs/msg/sas_ping.hpp>
@@ -54,7 +59,13 @@ class SasSonarPlugin : public gazebo::SensorPlugin
 public:
   ~SasSonarPlugin() override
   {
+    {
+      std::lock_guard<std::mutex> lk(state_mx_);
+      shutting_down_ = true;
+    }
+    ping_cv_.notify_all();
     update_conn_.reset();
+    world_end_conn_.reset();
   }
 
   void Load(gazebo::sensors::SensorPtr sensor, sdf::ElementPtr sdf) override
@@ -95,19 +106,52 @@ public:
     }
     synth_ = std::make_unique<synth::EchoSynthesizer>(yp_, Vector3d::Zero, rx_pos);
 
+    // REQ-013: range ambiguity, checked once.
+    pri_ = 1.0 / sensor_->UpdateRate();
+    if (dsp::RangeAmbiguous(p_.max_range, p_.sound_speed, pri_)) {
+      RCLCPP_WARN(
+        ros_node_->get_logger(),
+        "Range ambiguity: 2*max_range/c = %.4f s > PRI = %.4f s. Echoes from beyond %.1f m "
+        "fold into the next ping. Lower update_rate or max_range.",
+        2.0 * p_.max_range / p_.sound_speed, pri_, 0.5 * p_.sound_speed * pri_);
+    }
+
+    // ADR-0010: CPU `ray` sensors get no lockstep from Gazebo, so the plugin gates physics itself.
+    // `gpu_ray` is a rendering sensor: `gzserver --lockstep` already holds the rate, and the gate
+    // would deadlock against it, so it is never used there.
+    strict_rate_ = !gpu_ray_;
+    if (sdf->HasElement("strict_rate")) {strict_rate_ = sdf->Get<bool>("strict_rate");}
+    if (strict_rate_ && gpu_ray_) {
+      RCLCPP_WARN(
+        ros_node_->get_logger(),
+        "strict_rate is not supported with gpu_ray (deadlocks with --lockstep); disabled. "
+        "Run gzserver --lockstep.");
+      strict_rate_ = false;
+    }
+    {
+      // Arm the gate from the start: the first ping is due at t = 0, so physics waits after its
+      // first step until ping 0 is published instead of running free during ping 0.
+      std::lock_guard<std::mutex> lk(state_mx_);
+      last_ping_t_ = -pri_;
+      have_ping_ = true;
+    }
+
     pub_ = ros_node_->create_publisher<sas_msgs::msg::SasPing>(
       p_.topic, rclcpp::QoS(50).reliable());
+    // ADR-0010: per-step state history (exact transmit-time pose) and the strict-rate gate.
+    world_end_conn_ = gazebo::event::Events::ConnectWorldUpdateEnd(
+      std::bind(&SasSonarPlugin::OnWorldUpdateEnd, this));
     update_conn_ = sensor_->ConnectUpdated(std::bind(&SasSonarPlugin::OnScan, this));
     sensor_->SetActive(true);
 
     RCLCPP_INFO(
       ros_node_->get_logger(),
       "SAS sonar ready on %s: fc=%.1f kHz B=%.1f kHz Tp=%.2f ms fs=%.1f kHz N=%d d=%.3f m "
-      "PRF=%.2f Hz Ns=%d Nfft=%d cell=%.3f m alpha=%.4f dB/m sensor=%s",
+      "PRF=%.2f Hz Ns=%d Nfft=%d cell=%.3f m alpha=%.4f dB/m sensor=%s strict_rate=%s",
       p_.topic.c_str(), p_.center_frequency / 1e3, p_.bandwidth / 1e3, p_.pulse_length * 1e3,
       p_.sample_rate / 1e3, p_.num_elements, p_.element_spacing, sensor_->UpdateRate(),
       synth_->num_samples(), synth_->nfft(), sp_.cell_size, synth_->absorption_db_per_m(),
-      gpu_ray_ ? "gpu_ray" : "ray");
+      gpu_ray_ ? "gpu_ray" : "ray", strict_rate_ ? "true" : "false");
   }
 
 private:
@@ -180,11 +224,15 @@ private:
     } else {
       ReadScan(cpu_ray_, scan_);
     }
-    // Array frame in world: sensor pose relative to its link, composed with the link pose.
-    // Plan 006 also publishes it in SasPing (REQ-011).
-    const auto array_pose = sensor_->Pose() + link_->WorldPose();
-    // Receiver motion during propagation (REQ-008) uses the link velocity from plan 006.
-    const Vector3d vel = Vector3d::Zero;
+    // REQ-011: ground-truth state at transmit, never perturbed. Physics keeps stepping while this
+    // callback runs, so the state is looked up in the per-step history at the scan's measurement
+    // time instead of being read from the link now (ADR-0010). The scan and the pose then match.
+    const gazebo::common::Time t_tx = sensor_->LastMeasurementTime();
+    ignition::math::Pose3d array_pose;
+    Vector3d vel;
+    LookupState(t_tx.Double(), array_pose, vel);
+    CheckTiming(t_tx.Double());
+    CheckDpca(array_pose, vel);
 
     const auto t0 = std::chrono::steady_clock::now();  // diagnostics only, never in output
     scatter::BuildScatterers(scan_, array_pose, sp_, ws_, scatterers_);
@@ -199,7 +247,7 @@ private:
         std::chrono::duration<double>(t2 - t1).count());
     }
 
-    msg.header.stamp = gazebo_ros::Convert<builtin_interfaces::msg::Time>(world_->SimTime());
+    msg.header.stamp = gazebo_ros::Convert<builtin_interfaces::msg::Time>(t_tx);
     msg.header.frame_id = p_.frame_id;
     msg.ping_id = ping_id_++;
 
@@ -219,13 +267,105 @@ private:
     msg.element_length = p_.element_length;
     msg.tx_length = p_.tx_length;
 
-    // pose and velocity are filled in plan 006 (REQ-011); left at identity / zero here.
-    msg.pose.orientation.w = 1.0;
+    msg.pose = gazebo_ros::Convert<geometry_msgs::msg::Pose>(array_pose);
+    msg.velocity = gazebo_ros::Convert<geometry_msgs::msg::Vector3>(vel);
 
     msg.num_elements = static_cast<uint32_t>(p_.num_elements);
     msg.num_samples = static_cast<uint32_t>(synth_->num_samples());
 
     pub_->publish(msg);
+
+    // Release the strict-rate gate for this ping.
+    {
+      std::lock_guard<std::mutex> lk(state_mx_);
+      last_ping_t_ = t_tx.Double();
+    }
+    ping_cv_.notify_all();
+  }
+
+  // Physics thread, after every step: record the array state, then (strict_rate) hold physics at
+  // the step that reaches the next ping time until that ping is published (ADR-0010).
+  void OnWorldUpdateEnd()
+  {
+    const double t = world_->SimTime().Double();
+    StateSample s{t, sensor_->Pose() + link_->WorldPose(),
+      link_->WorldLinearVel(sensor_->Pose().Pos())};
+    std::unique_lock<std::mutex> lk(state_mx_);
+    history_.push_back(s);
+    while (history_.size() > kHistorySize) {
+      history_.pop_front();
+    }
+    if (!strict_rate_ || !have_ping_) {
+      return;
+    }
+    // Physics may run only up to one PRI past the last published ping. While a ping is being
+    // computed, the next one is not yet published, so physics waits at the next ping time.
+    // Do not arm this at ping start: the sensor thread is then still busy when the next ping
+    // time is reached, Gazebo's sensor wake-up event (fired at world update begin) is missed,
+    // and the gate stalls until its timeout.
+    const double due = last_ping_t_ + pri_;
+    if (t + 1e-9 < due) {
+      return;
+    }
+    const bool released = ping_cv_.wait_for(lk, std::chrono::seconds(10), [&] {
+          return shutting_down_ || last_ping_t_ + 1e-9 >= due;
+        });
+    if (!released) {
+      RCLCPP_WARN_THROTTLE(
+        ros_node_->get_logger(), steady_clock_, 5000,
+        "strict_rate: no ping for t = %.3f s after 10 s wall time; letting physics continue.",
+        due);
+      last_ping_t_ = due;  // skip this ping rather than block forever
+    }
+  }
+
+  // Exact state at measurement time t; nearest earlier sample (with a warning) if t is missing.
+  void LookupState(double t, ignition::math::Pose3d & pose, Vector3d & vel)
+  {
+    std::lock_guard<std::mutex> lk(state_mx_);
+    const StateSample * best = nullptr;
+    for (auto it = history_.rbegin(); it != history_.rend(); ++it) {
+      if (it->t <= t + 1e-9) {best = &*it; break;}
+    }
+    if (!best) {
+      // Before the first physics step: read the link directly.
+      pose = sensor_->Pose() + link_->WorldPose();
+      vel = link_->WorldLinearVel(sensor_->Pose().Pos());
+      return;
+    }
+    if (std::abs(best->t - t) > 1e-9) {
+      RCLCPP_WARN_THROTTLE(
+        ros_node_->get_logger(), steady_clock_, 5000,
+        "No state sample at t = %.6f s; using t = %.6f s.", t, best->t);
+    }
+    pose = best->pose;
+    vel = best->vel;
+  }
+
+  // Lockstep check: every sensor update must be one PRI after the previous one (REQ-012).
+  void CheckTiming(double t)
+  {
+    if (last_t_ >= 0.0 && dsp::PingIntervalOff(t - last_t_, pri_)) {
+      RCLCPP_WARN_THROTTLE(
+        ros_node_->get_logger(), steady_clock_, 5000,
+        "Ping interval %.4f s differs from PRI %.4f s. Enable strict_rate or run gzserver --lockstep.",
+        t - last_t_, pri_);
+    }
+    last_t_ = t;
+  }
+
+  // DPCA along-track sampling check (REQ-013). Warning only.
+  void CheckDpca(const ignition::math::Pose3d & array_pose, const Vector3d & vel)
+  {
+    const double v_along = vel.Dot(array_pose.Rot().RotateVector(Vector3d::UnitY));
+    if (dsp::DpcaViolated(v_along, pri_, p_.num_elements, p_.element_spacing)) {
+      RCLCPP_WARN_THROTTLE(
+        ros_node_->get_logger(), steady_clock_, 5000,
+        "DPCA criterion violated: v_along*PRI = %.3f m > N*d/2 = %.3f m (v_along = %.2f m/s, "
+        "limit %.2f m/s). Expect along-track aliasing.",
+        std::abs(v_along) * pri_, 0.5 * p_.num_elements * p_.element_spacing, v_along,
+        0.5 * p_.num_elements * p_.element_spacing / pri_);
+    }
   }
 
   // Debug summary: count, z range, timings, and one tracked voxel (plan 004/005 exit checks).
@@ -273,6 +413,27 @@ private:
   dsp::SonarParams p_;
   std::vector<double> rx_y_;
   uint64_t ping_id_ = 0;
+  double pri_ = 0.1;
+  double last_t_ = -1.0;
+  // Throttled warnings use wall time: the node clock is sim time and stays at 0 without /clock.
+  rclcpp::Clock steady_clock_{RCL_STEADY_TIME};
+
+  // ADR-0010: per-step state history and strict-rate gate. Guarded by state_mx_.
+  struct StateSample
+  {
+    double t;
+    ignition::math::Pose3d pose;
+    Vector3d vel;
+  };
+  static constexpr size_t kHistorySize = 8192;  // ~8 s at a 1 ms physics step
+  gazebo::event::ConnectionPtr world_end_conn_;
+  std::mutex state_mx_;
+  std::condition_variable ping_cv_;
+  std::deque<StateSample> history_;
+  bool strict_rate_ = true;
+  bool have_ping_ = false;  // gate armed
+  bool shutting_down_ = false;
+  double last_ping_t_ = 0.0;  // measurement time of the last published ping
 
   scatter::Params sp_;
   scatter::Scan scan_;

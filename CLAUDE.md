@@ -66,7 +66,12 @@ ros2 launch sas_bringup sas_sensor.launch.py         # run sensor in test world
 - Smoke run without launch: `GAZEBO_PLUGIN_PATH=$PWD/install/sas_gazebo/lib gzserver --lockstep
   src/sas_gazebo/test/worlds/sas_smoke.world`; move it with
   `ros2 topic pub -r 10 /sas/cmd_vel geometry_msgs/msg/Twist "{linear: {y: 1.5}}"`.
-  `timeout` does not always stop `gzserver`; stop it with `pkill -INT -f <world>` and check
+  `gpu_ray` worlds need a display (`DISPLAY=:1` here) and `--lockstep`; CPU `ray` worlds are gated by
+  the plugin (ADR-0010).
+- Never use `pkill -f <pattern>` / `pgrep -f ... | xargs kill` from the Bash tool: the pattern also
+  matches the tool's own shell command line and kills it (exit 144). Start background processes in
+  a script and stop them by `$!` PID.
+- `timeout` does not always stop `gzserver`; stop it with `pkill -INT -f <world>` and check
   `pgrep -a gzserver`, or the next run fails with "Address already in use".
 
 ## Working rules

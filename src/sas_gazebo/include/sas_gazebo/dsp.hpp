@@ -76,6 +76,28 @@ inline std::vector<double> ReceiverPositionsY(int num_elements, double spacing)
   return y;
 }
 
+// Design checks (REQ-013). They only drive warnings and never change the output.
+
+// Echoes from max_range must arrive before the next ping: 2 R_max / c <= PRI.
+inline bool RangeAmbiguous(double max_range, double sound_speed, double pri)
+{
+  return 2.0 * max_range / sound_speed > pri;
+}
+
+// DPCA along-track sampling: the array may advance at most half its length per ping,
+// v_along * PRI <= N d / 2, or the synthetic aperture is under-sampled (aliasing).
+inline bool DpcaViolated(double v_along, double pri, int num_elements, double spacing)
+{
+  return std::abs(v_along) * pri > 0.5 * num_elements * spacing;
+}
+
+// Ping timing: true when the measured interval differs from the PRI by more than `rel_tol`
+// (Gazebo without --lockstep may skip or stretch sensor updates).
+inline bool PingIntervalOff(double interval, double pri, double rel_tol = 0.01)
+{
+  return std::abs(interval - pri) > rel_tol * pri;
+}
+
 // Sensor parameters read from SDF. Defaults follow reference doc Section 2.3.
 struct SonarParams
 {
