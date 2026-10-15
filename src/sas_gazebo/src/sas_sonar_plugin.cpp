@@ -8,6 +8,8 @@
 #include <fftw3.h>
 
 #include <algorithm>
+#include <chrono>
+#include <cmath>
 #include <complex>
 #include <cstring>
 #include <memory>
@@ -25,9 +27,28 @@
 #include <sas_msgs/msg/sas_ping.hpp>
 
 #include "sas_gazebo/dsp.hpp"
+#include "sas_gazebo/scatter.hpp"
 
 namespace sas_gazebo
 {
+
+template<typename SensorT>
+void ReadScan(const std::shared_ptr<SensorT> & s, scatter::Scan & scan)
+{
+  scan.nh = s->RangeCount();
+  scan.nv = s->VerticalRangeCount();
+  scan.hmin = s->AngleMin().Radian();
+  scan.hres = s->AngleResolution();
+  scan.vmin = s->VerticalAngleMin().Radian();
+  scan.vres = s->VerticalAngleResolution();
+  scan.rmin = s->RangeMin();
+  scan.rmax = s->RangeMax();
+  s->Ranges(scan.ranges);
+  scan.retro.resize(scan.ranges.size());
+  for (size_t i = 0; i < scan.ranges.size(); ++i) {
+    scan.retro[i] = s->Retro(static_cast<int>(i));
+  }
+}
 
 class SasSonarPlugin : public gazebo::SensorPlugin
 {
@@ -53,6 +74,14 @@ public:
     }
     world_ = gazebo::physics::get_world(sensor->WorldName());
     ros_node_ = gazebo_ros::Node::Get(sdf);
+    link_ = boost::dynamic_pointer_cast<gazebo::physics::Link>(  // physics uses boost::shared_ptr
+      world_->EntityByName(sensor->ParentName()));
+    if (!link_) {
+      RCLCPP_ERROR(
+        ros_node_->get_logger(), "Parent link '%s' not found. SAS sonar disabled.",
+        sensor->ParentName().c_str());
+      return;
+    }
 
     ReadParams(sdf);
     const auto errors = dsp::Validate(p_);
@@ -110,6 +139,18 @@ private:
     get_d("noise_std", p_.noise_std);
     get_i("seed", p_.seed);
     get_s("topic", p_.topic);
+    // Scene (plan 004). REQ-004, REQ-005, REQ-007
+    double cell = sp_.cell_size, max_inc_deg = 88.0, bs_db = -27.0;
+    get_d("cell_size", cell);
+    get_d("max_incidence_deg", max_inc_deg);
+    get_d("default_backscatter_db", bs_db);
+    sp_.cell_size = cell;
+    sp_.max_incidence = max_inc_deg * M_PI / 180.0;
+    sp_.mu_default = std::pow(10.0, bs_db / 10.0);
+    sp_.min_range = p_.min_range;
+    sp_.max_range = p_.max_range;
+    sp_.seed = static_cast<uint64_t>(static_cast<uint32_t>(p_.seed));
+    if (sdf->HasElement("debug_scatterers")) {debug_scatterers_ = sdf->Get<bool>("debug_scatterers");}
     get_s("frame_id", p_.frame_id);
   }
 
@@ -143,6 +184,20 @@ private:
 
   void OnScan()
   {
+    if (gpu_ray_) {
+      ReadScan(gpu_ray_, scan_);
+    } else {
+      ReadScan(cpu_ray_, scan_);
+    }
+    // Array frame in world: sensor pose relative to its link, composed with the link pose.
+    // Plan 006 also publishes it in SasPing (REQ-011).
+    const auto array_pose = sensor_->Pose() + link_->WorldPose();
+    const auto t_start = std::chrono::steady_clock::now();
+    scatter::BuildScatterers(scan_, array_pose, sp_, ws_, scatterers_);
+    if (debug_scatterers_) {
+      LogScatterers(std::chrono::duration<double>(std::chrono::steady_clock::now() - t_start).count());
+    }
+
     sas_msgs::msg::SasPing msg;
     msg.header.stamp = gazebo_ros::Convert<builtin_interfaces::msg::Time>(world_->SimTime());
     msg.header.frame_id = p_.frame_id;
@@ -176,10 +231,42 @@ private:
     pub_->publish(msg);
   }
 
+  // Debug summary for the plan 004 exit check: count, z range, and one tracked voxel.
+  void LogScatterers(double build_s)
+  {
+    double zmin = 1e9, zmax = -1e9;
+    for (const auto & s : scatterers_) {
+      zmin = std::min(zmin, s.pos.Z());
+      zmax = std::max(zmax, s.pos.Z());
+    }
+    if (!scatterers_.empty() && tracked_key_ == 0) {
+      tracked_key_ = scatterers_[scatterers_.size() / 2].key;
+    }
+    const scatter::Scatterer * tracked = nullptr;
+    for (const auto & s : scatterers_) {
+      if (s.key == tracked_key_) {tracked = &s; break;}
+    }
+    if (tracked) {
+      RCLCPP_INFO(
+        ros_node_->get_logger(),
+        "ping %lu: scatterers=%zu z=[%.3f, %.3f] build=%.1f ms | voxel %lx pos=(%.9f, %.9f, %.9f) "
+        "speckle=(%.9f, %.9f) mu=%.4g",
+        static_cast<unsigned long>(ping_id_), scatterers_.size(), zmin, zmax, build_s * 1e3,
+        static_cast<unsigned long>(tracked_key_), tracked->pos.X(), tracked->pos.Y(),
+        tracked->pos.Z(), tracked->speckle.real(), tracked->speckle.imag(), tracked->mu);
+    } else {
+      RCLCPP_INFO(
+        ros_node_->get_logger(), "ping %lu: scatterers=%zu z=[%.3f, %.3f] build=%.1f ms | voxel %lx not seen",
+        static_cast<unsigned long>(ping_id_), scatterers_.size(), zmin, zmax, build_s * 1e3,
+        static_cast<unsigned long>(tracked_key_));
+    }
+  }
+
   gazebo::sensors::SensorPtr sensor_;
   gazebo::sensors::GpuRaySensorPtr gpu_ray_;
   gazebo::sensors::RaySensorPtr cpu_ray_;
   gazebo::physics::WorldPtr world_;
+  gazebo::physics::LinkPtr link_;
   gazebo::event::ConnectionPtr update_conn_;
   gazebo_ros::Node::SharedPtr ros_node_;
   rclcpp::Publisher<sas_msgs::msg::SasPing>::SharedPtr pub_;
@@ -193,6 +280,13 @@ private:
   fftwf_plan inv_ = nullptr;
   std::vector<std::complex<float>> chirp_spec_;
   uint64_t ping_id_ = 0;
+
+  scatter::Params sp_;
+  scatter::Scan scan_;
+  scatter::Workspace ws_;
+  std::vector<scatter::Scatterer> scatterers_;
+  bool debug_scatterers_ = false;
+  uint64_t tracked_key_ = 0;
 };
 
 GZ_REGISTER_SENSOR_PLUGIN(SasSonarPlugin)

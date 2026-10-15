@@ -1,12 +1,21 @@
 <?xml version="1.0"?>
-<!-- Plan 003 smoke test: one static sonar over a ground plane. Not a validation world. -->
+<!-- Smoke test (plans 003-004): one sonar 10 m over a ground plane. Not a validation world.
+     Stationary by default; publish geometry_msgs/Twist on /sas/cmd_vel to move it. -->
 <sdf version="1.6">
   <world name="sas_smoke">
     <include><uri>model://ground_plane</uri></include>
     <model name="sonar_mount">
-      <static>true</static>
       <pose>0 0 10 0 0.35 0</pose>
+      <plugin name="mover" filename="libgazebo_ros_planar_move.so">
+        <ros><namespace>/sas</namespace></ros>
+        <update_rate>100</update_rate>
+        <publish_rate>10</publish_rate>
+        <publish_odom>false</publish_odom>
+        <publish_odom_tf>false</publish_odom_tf>
+      </plugin>
       <link name="sas_array_link">
+        <gravity>false</gravity>
+        <inertial><mass>10</mass><inertia><ixx>1</ixx><iyy>1</iyy><izz>1</izz></inertia></inertial>
         <sensor name="sas_sonar" type="ray">
           <always_on>true</always_on>
           <update_rate>10</update_rate>
@@ -23,6 +32,7 @@
             <frame_id>sas_array_link</frame_id>
             <num_elements>16</num_elements>
             <element_spacing>0.04</element_spacing>
+            <debug_scatterers>true</debug_scatterers>
           </plugin>
         </sensor>
       </link>

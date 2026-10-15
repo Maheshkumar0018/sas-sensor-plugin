@@ -13,6 +13,7 @@
   <depend>gazebo_ros</depend>
   <depend>rclcpp</depend>
   <depend>sas_msgs</depend>
+  <depend>ignition-math6</depend>
   <depend>libfftw3</depend>
 
   <test_depend>ament_cmake_gtest</test_depend>

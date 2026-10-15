@@ -13,10 +13,10 @@ Status values: `Draft` → `Approved` → `Implemented` → `Verified`.
 | REQ-001 | Transmit an LFM chirp with configurable centre frequency, bandwidth, and pulse length. Simulate in complex baseband. | F1 | V1 | Implemented |
 | REQ-002 | Model a transmitter and an N-element along-track receiver array with configurable element count, spacing, and element length. | F2 | V1 | Implemented |
 | REQ-003 | Apply transmit and receive beam patterns `b(θ) = sinc(D sinθ / λ)` at the centre frequency. | F3 | V3 | Draft |
-| REQ-004 | Derive scene geometry from Gazebo ray casting (`gpu_ray` or `ray`). Reconstruct surfaces and produce acoustic shadows by rejecting grazing and occluded faces. | F4 | V4 | Draft |
-| REQ-005 | Represent the scene as world-fixed voxel scatterers. Position jitter and complex speckle derive from a hash of the voxel index, so a voxel is identical in every ping. | F5 | V4 | Draft |
+| REQ-004 | Derive scene geometry from Gazebo ray casting (`gpu_ray` or `ray`). Reconstruct surfaces and produce acoustic shadows by rejecting grazing and occluded faces. | F4 | V4 | Implemented |
+| REQ-005 | Represent the scene as world-fixed voxel scatterers. Position jitter and complex speckle derive from a hash of the voxel index, so a voxel is identical in every ping. | F5 | V4 | Implemented |
 | REQ-006 | Model two-way spherical spreading, Thorp absorption (or SDF override), and Lambertian backscatter. | F6 | V2 | Draft |
-| REQ-007 | Take per-surface backscatter strength from SDF `<laser_retro>`, with a configurable default. | F7 | V2 | Draft |
+| REQ-007 | Take per-surface backscatter strength from SDF `<laser_retro>`, with a configurable default. | F7 | V2 | Implemented |
 | REQ-008 | Account for receiver motion during propagation (no stop-and-hop) when computing each element's delay. | F8 | V5 | Draft |
 | REQ-009 | Output the raw received baseband echo per element with additive complex Gaussian receiver noise. No matched filtering in the sensor. | F9 | V1, V7 | Draft |
 | REQ-010 | Publish one `sas_msgs/SasPing` per transmit on a configurable topic. The message carries all waveform and geometry parameters needed to interpret the echo without the SDF. | F12 | plan 002 exit check | Implemented |

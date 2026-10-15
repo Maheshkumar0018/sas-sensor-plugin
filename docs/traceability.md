@@ -9,10 +9,10 @@ tests for a REQ. Code and test columns stay `—` until the work exists.
 | REQ-001 | — | 003 | `dsp.hpp` `ChirpSamples`; `sas_sonar_plugin.cpp` `SetupDsp` | `test_dsp` Chirp.UnitModulusAndSweep; V1 | Implemented |
 | REQ-002 | — | 003 | `dsp.hpp` `ReceiverPositionsY`; `sas_sonar_plugin.cpp` `Load` | `test_dsp` Array.ReceiverPositionsCentred; V1 | Implemented |
 | REQ-003 | — | 003 | `dsp.hpp` `Sinc`, `BeamPattern` (applied in plan 005) | `test_dsp` Beam.SincAndFirstNull; V3 | Draft |
-| REQ-004 | — | 004 | — | V4 | Draft |
-| REQ-005 | 0004 | 004 | — | unit: CellKey/SplitMix64; V4 | Draft |
+| REQ-004 | — | 004 | `scatter.cpp` `BuildScatterers`; plugin `ReadScan` | `test_scatter` FlatGroundLiesOnPlane, DepthDiscontinuityLeavesShadow, RangeGateApplied; V4 | Implemented |
+| REQ-005 | 0004 | 004 | `scatter.hpp` `CellKey`, `VoxelIndex`, `VoxelScatterer` | `test_scatter` Hash.*, BoundaryAlignedSurfaceIsOneLayer, RevisitedVoxelsAreIdentical; V4 | Implemented |
 | REQ-006 | — | 005 | — | unit: Thorp; V2 | Draft |
-| REQ-007 | — | 004 | — | V2 | Draft |
+| REQ-007 | — | 004 | `scatter.cpp` retro → μ; plugin `default_backscatter_db` | `test_scatter` RetroSetsMuOtherwiseDefault; V2 | Implemented |
 | REQ-008 | 0005 | 005 | — | unit: delay solver; V5 | Draft |
 | REQ-009 | 0002 | 005 | — | V1, V7 | Draft |
 | REQ-010 | 0002, 0003 | 002 | `src/sas_msgs/msg/SasPing.msg` | `src/sas_msgs/test/test_sasping_contract.py`; plan 002 exit check | Implemented |

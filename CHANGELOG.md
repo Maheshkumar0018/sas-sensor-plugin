@@ -13,6 +13,8 @@ Sections in this order, only when non-empty: Added, Changed, Deprecated, Removed
 ## [Unreleased]
 
 ### Added
+- `sas_gazebo`: world-fixed scatterer field (`scatter.hpp`/`scatter.cpp`): surface reconstruction from the ray image, shadow rejection, voxels centred on multiples of `cell_size` with hash-derived jitter and speckle, μ from `<laser_retro>`; 10 gtests; SDF params `cell_size`, `max_incidence_deg`, `default_backscatter_db`, `debug_scatterers`. plan 004, REQ-004, REQ-005, REQ-007
+- Smoke world can move along-track via `/sas/cmd_vel` (stock `planar_move`). plan 004
 - `scripts/setup_local_fftw.sh`: FFTW dev files into `.deps/` without root; CMake uses them only when no system install exists. ADR-0009
 - `sas_gazebo`: `dsp.hpp` helpers (chirp, beam pattern, array positions, parameter validation) with gtest `test_dsp`; `sas_sonar_plugin` skeleton publishing zero-echo `SasPing`; smoke world. plan 003, REQ-001, REQ-002, REQ-003
 - `sas_msgs/msg/SasPing.msg` (frozen contract) and freeze test `test_sasping_contract.py`. plan 002, REQ-010, ADR-0003

@@ -64,7 +64,10 @@ ros2 launch sas_bringup sas_sensor.launch.py         # run sensor in test world
   from `.deps/fftw` via `scripts/setup_local_fftw.sh` (ADR-0009). `rosdep check` reporting
   `libfftw3-dev` missing is expected.
 - Smoke run without launch: `GAZEBO_PLUGIN_PATH=$PWD/install/sas_gazebo/lib gzserver --lockstep
-  src/sas_gazebo/test/worlds/sas_smoke.world`.
+  src/sas_gazebo/test/worlds/sas_smoke.world`; move it with
+  `ros2 topic pub -r 10 /sas/cmd_vel geometry_msgs/msg/Twist "{linear: {y: 1.5}}"`.
+  `timeout` does not always stop `gzserver`; stop it with `pkill -INT -f <world>` and check
+  `pgrep -a gzserver`, or the next run fails with "Address already in use".
 
 ## Working rules
 
