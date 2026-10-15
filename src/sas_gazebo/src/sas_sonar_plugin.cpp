@@ -65,6 +65,7 @@ public:
     }
     ping_cv_.notify_all();
     update_conn_.reset();
+    laser_frame_conn_.reset();
     world_end_conn_.reset();
   }
 
@@ -141,6 +142,15 @@ public:
     // ADR-0010: per-step state history (exact transmit-time pose) and the strict-rate gate.
     world_end_conn_ = gazebo::event::Events::ConnectWorldUpdateEnd(
       std::bind(&SasSonarPlugin::OnWorldUpdateEnd, this));
+    if (gpu_ray_) {
+      // Gazebo 11's GpuRaySensor::Retro() is a stub that always returns 0. The retro channel is
+      // only available in the raw laser frame (range, retro, unused per ray), delivered in the
+      // same order as Ranges() just before the sensor's update event (ADR-0011).
+      laser_frame_conn_ = gpu_ray_->ConnectNewLaserFrame(
+        std::bind(
+          &SasSonarPlugin::OnLaserFrame, this, std::placeholders::_1, std::placeholders::_2,
+          std::placeholders::_3, std::placeholders::_4));
+    }
     update_conn_ = sensor_->ConnectUpdated(std::bind(&SasSonarPlugin::OnScan, this));
     sensor_->SetActive(true);
 
@@ -221,6 +231,7 @@ private:
   {
     if (gpu_ray_) {
       ReadScan(gpu_ray_, scan_);
+      ApplyGpuRetro();
     } else {
       ReadScan(cpu_ray_, scan_);
     }
@@ -281,6 +292,46 @@ private:
       last_ping_t_ = t_tx.Double();
     }
     ping_cv_.notify_all();
+  }
+
+  // Rendering thread: copy range and retro channels of the newest GPU laser frame.
+  void OnLaserFrame(const float * data, unsigned int w, unsigned int h, unsigned int depth)
+  {
+    std::lock_guard<std::mutex> lk(frame_mx_);
+    const size_t n = static_cast<size_t>(w) * h;
+    frame_range_.resize(n);
+    frame_retro_.resize(n);
+    for (size_t i = 0; i < n; ++i) {
+      frame_range_[i] = data[i * depth];
+      frame_retro_[i] = depth > 1 ? data[i * depth + 1] : 0.0f;
+    }
+  }
+
+  // Replace the stub retro values with the frame's retro channel. The frame must be the one the
+  // ranges came from: same size, and every finite in-range range must match.
+  void ApplyGpuRetro()
+  {
+    std::lock_guard<std::mutex> lk(frame_mx_);
+    bool aligned = frame_retro_.size() == scan_.ranges.size();
+    size_t checked = 0;
+    for (size_t i = 0; aligned && i < scan_.ranges.size(); ++i) {
+      const double r = scan_.ranges[i];
+      if (std::isfinite(r) && r < scan_.rmax) {
+        aligned = std::abs(r - frame_range_[i]) <= 1e-3 * std::max(1.0, r);
+        ++checked;
+      }
+    }
+    if (!aligned || checked == 0) {
+      RCLCPP_WARN_THROTTLE(
+        ros_node_->get_logger(), steady_clock_, 5000,
+        "GPU laser frame does not match the scan (%zu vs %zu rays, %zu checked); "
+        "laser_retro ignored for this ping, default_backscatter_db used.",
+        frame_retro_.size(), scan_.ranges.size(), checked);
+      return;
+    }
+    for (size_t i = 0; i < scan_.retro.size(); ++i) {
+      scan_.retro[i] = frame_retro_[i];
+    }
   }
 
   // Physics thread, after every step: record the array state, then (strict_rate) hold physics at
@@ -371,11 +422,19 @@ private:
   // Debug summary: count, z range, timings, and one tracked voxel (plan 004/005 exit checks).
   void LogScatterers(double build_s, double synth_s)
   {
-    double zmin = 1e9, zmax = -1e9;
+    double zmin = 1e9, zmax = -1e9, mu_min = 1e9, mu_max = -1e9, retro_max = 0.0;
+    size_t bright = 0;
     for (const auto & s : scatterers_) {
       zmin = std::min(zmin, s.pos.Z());
       zmax = std::max(zmax, s.pos.Z());
+      mu_min = std::min(mu_min, s.mu);
+      mu_max = std::max(mu_max, s.mu);
+      bright += s.mu > 0.1 ? 1 : 0;
     }
+    for (double r : scan_.retro) {retro_max = std::max(retro_max, r);}
+    RCLCPP_INFO(
+      ros_node_->get_logger(), "ping %lu: raw retro max=%.4g | mu=[%.4g, %.4g] voxels mu>0.1: %zu",
+      static_cast<unsigned long>(ping_id_), retro_max, mu_min, mu_max, bright);
     if (!scatterers_.empty() && tracked_key_ == 0) {
       tracked_key_ = scatterers_[scatterers_.size() / 2].key;
     }
@@ -427,6 +486,11 @@ private:
   };
   static constexpr size_t kHistorySize = 8192;  // ~8 s at a 1 ms physics step
   gazebo::event::ConnectionPtr world_end_conn_;
+  // ADR-0011: GPU retro channel from the raw laser frame. Guarded by frame_mx_.
+  gazebo::event::ConnectionPtr laser_frame_conn_;
+  std::mutex frame_mx_;
+  std::vector<float> frame_range_;
+  std::vector<float> frame_retro_;
   std::mutex state_mx_;
   std::condition_variable ping_cv_;
   std::deque<StateSample> history_;

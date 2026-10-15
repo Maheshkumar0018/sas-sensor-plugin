@@ -19,6 +19,8 @@ processing (ADRs 0001, 0005).
 - Never read link pose or velocity in `OnScan()`. Physics keeps stepping during the callback; use
   the per-step state history looked up at `LastMeasurementTime()` (ADR-0010).
 - Throttled logs use `steady_clock_`, not the node clock (sim time, 0 without `/clock`).
+- Do not call `GpuRaySensor::Retro()`: it is a stub returning 0 in Gazebo 11. Use the laser-frame
+  copy (ADR-0011, BUG-001).
 
 ## Style
 

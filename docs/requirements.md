@@ -23,14 +23,14 @@ Status values: `Draft` → `Approved` → `Implemented` → `Verified`.
 | REQ-011 | Report the ground-truth world pose and linear velocity of the array frame at transmit time. Never add navigation error. | F10 (part) | plan 006 exit check | Implemented |
 | REQ-012 | Produce bit-identical output for the same world, seed, and parameters, under lockstep simulation. | F15 | V6 | Draft |
 | REQ-013 | Warn (without changing behaviour) on range ambiguity (`2·max_range/c > PRI`) and DPCA under-sampling (`|v_along|·PRI > N·d/2`, along-track speed). | F15 | plan 006 exit check | Implemented |
-| REQ-014 | Provide a reusable `sas_array.xacro` macro so any vehicle model can mount the sensor by including it with a parent link. | — | plan 007 exit check | Draft |
+| REQ-014 | Provide a reusable `sas_array.xacro` macro so any vehicle model can mount the sensor by including it with a parent link. | — | plan 007 exit check | Implemented |
 
 ## Non-functional
 
 | ID | Requirement | Verified by | Status |
 |----|-------------|-------------|--------|
 | REQ-101 | Ubuntu 22.04, ROS 2 Humble, Gazebo Classic 11, C++17. | Build | Draft |
-| REQ-102 | Run on CPU (`ray`) when no OpenGL GPU is available. | plan 007 run with `sensor_type:=ray` | Draft |
+| REQ-102 | Run on CPU (`ray`) when no OpenGL GPU is available. | plan 007 run with `sensor_type:=ray` | Implemented |
 | REQ-103 | Performance target: **TBD** (real-time factor and max ping latency at default parameters). | plan 009 | Draft — needs value |
 
 ## Out of scope (downstream package)

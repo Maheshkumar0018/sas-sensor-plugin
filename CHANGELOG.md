@@ -13,6 +13,9 @@ Sections in this order, only when non-empty: Added, Changed, Deprecated, Removed
 ## [Unreleased]
 
 ### Added
+- `sas_description`: reusable `sas_array.xacro` macro and `sas_test_carrier.urdf.xacro` (stock `planar_move`). plan 007, REQ-014, ADR-0005
+- `sas_bringup`: `sas_point_target.world`, `sas_seabed.world`, `sas_sensor.launch.py` (args world, sensor_type, prf, h_samples, v_samples, speed, x, y, z, gui, debug). plan 007, REQ-102
+- Debug summary (`debug_scatterers` / `debug:=true`) logs raw retro and μ range per ping. plan 007
 - `SasPing.pose`, `velocity`, and stamp now carry the ground-truth array state at the scan's measurement time, from a per-physics-step state history. plan 006, REQ-011, ADR-0010
 - Strict-rate gate (`strict_rate`, default on for CPU `ray`) keeps one ping per PRI; `gpu_ray` uses `gzserver --lockstep`. plan 006, REQ-012, ADR-0010
 - Design-check warnings: range ambiguity at load, DPCA along-track sampling per ping, ping interval vs PRI. plan 006, REQ-013
@@ -30,7 +33,7 @@ Sections in this order, only when non-empty: Added, Changed, Deprecated, Removed
 - Requirements REQ-001…014 and REQ-101…103. `docs/requirements.md`
 - Architecture overview and traceability matrix. `docs/architecture.md`, `docs/traceability.md`
 - Implementation plans 000–009 for the sensor-only build. `docs/plans/`
-- Decision records ADR-0001…0010 and decision log. `docs/decisions/`
+- Decision records ADR-0001…0011 and decision log. `docs/decisions/`
 - Change-tracking policy: changelog, decision log, bug records. ADR-0007
 - Git commit policy in `CLAUDE.md` and `.gitignore`.
 - Project overview deck, self-contained HTML, 11 slides. `docs/presentations/sas_sensor_overview.html`
@@ -41,6 +44,7 @@ Sections in this order, only when non-empty: Added, Changed, Deprecated, Removed
 - Sensor outputs raw echo only. ADR-0002
 
 ### Fixed
+- `gpu_ray` ignored `<laser_retro>`: Gazebo 11 `GpuRaySensor::Retro()` always returns 0. Retro is now read from the raw laser frame with an alignment check. BUG-001, ADR-0011, REQ-007
 - Overview deck stated 40 kHz bandwidth; default is 20 kHz (δr = c/2B = 3.75 cm). `docs/presentations/sas_sensor_overview.html`
 
 ### Removed

@@ -1,0 +1,49 @@
+<?xml version="1.0"?>
+<!-- Copyright 2026 The SAS Sensor Plugin Authors
+     SPDX-License-Identifier: Apache-2.0
+
+     Minimal test carrier for the SAS sensor (ADR-0005): a box with gravity off, moved by the
+     stock planar_move plugin. Publish geometry_msgs/Twist on /sas/cmd_vel (linear.x = speed).
+     No motion errors: those belong to the downstream package. -->
+<robot name="sas_test_carrier" xmlns:xacro="http://www.ros.org/wiki/xacro">
+  <xacro:arg name="sensor_type" default="gpu_ray"/>
+  <xacro:arg name="prf" default="10.0"/>
+  <xacro:arg name="h_samples" default="512"/>
+  <xacro:arg name="v_samples" default="512"/>
+  <xacro:arg name="debug" default="false"/>
+
+  <xacro:include filename="$(find sas_description)/urdf/sas_array.xacro"/>
+
+  <link name="base_link">
+    <inertial>
+      <mass value="100.0"/>
+      <inertia ixx="1.5" ixy="0" ixz="0" iyy="9.0" iyz="0" izz="9.0"/>
+    </inertial>
+    <visual>
+      <geometry><box size="1.0 0.3 0.3"/></geometry>
+    </visual>
+    <collision>
+      <geometry><box size="1.0 0.3 0.3"/></geometry>
+    </collision>
+  </link>
+
+  <!-- Starboard array, boresight 20 deg (0.35 rad) below horizontal; array y = vehicle +x. -->
+  <xacro:sas_array parent="base_link" xyz="0.0 -0.17 0.0" rpy="0 0.35 -1.5708"
+                   sensor_type="$(arg sensor_type)" prf="$(arg prf)"
+                   h_samples="$(arg h_samples)" v_samples="$(arg v_samples)"
+                   debug="$(arg debug)"/>
+
+  <gazebo reference="base_link">
+    <gravity>false</gravity>
+  </gazebo>
+
+  <gazebo>
+    <plugin name="carrier_mover" filename="libgazebo_ros_planar_move.so">
+      <ros><namespace>/sas</namespace></ros>
+      <update_rate>1000</update_rate>
+      <publish_rate>10</publish_rate>
+      <publish_odom>false</publish_odom>
+      <publish_odom_tf>false</publish_odom_tf>
+    </plugin>
+  </gazebo>
+</robot>

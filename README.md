@@ -40,9 +40,20 @@ source install/setup.bash
 ## Run
 
 ```bash
-ros2 launch sas_bringup sas_sensor.launch.py                       # seabed world, carrier at 1.5 m/s
-ros2 launch sas_bringup sas_sensor.launch.py world:=sas_point_target.world speed:=0.0
-ros2 topic hz /sas/ping
+ros2 launch sas_bringup sas_sensor.launch.py                       # seabed world, gpu_ray, 1.5 m/s
+ros2 launch sas_bringup sas_sensor.launch.py world:=sas_point_target.world speed:=0.0 x:=0.0
+ros2 launch sas_bringup sas_sensor.launch.py sensor_type:=ray h_samples:=256 v_samples:=256  # no GPU
+python3 tests/validation/check_state.py --vel 1.5 0 0               # stamps, pose, velocity
+```
+
+Simulation runs in lockstep with the sonar, slower than real time (RTF ~0.15–0.2 at the defaults).
+`ros2 topic hz` shows wall-clock rate; ping stamps are exactly 1/PRF apart in sim time.
+
+To mount the array on your own vehicle:
+
+```xml
+<xacro:include filename="$(find sas_description)/urdf/sas_array.xacro"/>
+<xacro:sas_array parent="base_link" xyz="0 -0.17 0" rpy="0 0.35 -1.5708"/>
 ```
 
 ## Test

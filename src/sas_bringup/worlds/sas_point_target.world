@@ -1,0 +1,54 @@
+<?xml version="1.0"?>
+<!-- Copyright 2026 The SAS Sensor Plugin Authors
+     SPDX-License-Identifier: Apache-2.0
+
+     Point-target world for delay and amplitude checks (plans 007-008, V1-V3).
+     Carrier spawned by the launch file at (0, 0, 10), array boresight starboard and 20 deg down.
+     The target is a 0.3 m plate on that boresight at 15 m, facing the array: a sphere is a poor
+     point target because its visible cap spans many range samples (plan 005 log).
+     <laser_retro> = Lambert backscatter mu (linear), REQ-007. It is set on both the visual
+     (read by gpu_ray) and the collision (read by CPU ray). 0 means default_backscatter_db.
+     sand 0.002 (-27 dB), rock 0.02 (-17 dB), metal 0.3 (-5 dB), point/plate target 1.0 (0 dB). -->
+<sdf version="1.6">
+  <world name="sas_point_target">
+    <physics type="ode">
+      <max_step_size>0.001</max_step_size>
+      <real_time_factor>1.0</real_time_factor>
+      <real_time_update_rate>1000</real_time_update_rate>
+    </physics>
+    <scene>
+      <ambient>0.2 0.3 0.4 1</ambient>
+      <background>0.0 0.1 0.2 1</background>
+      <shadows>false</shadows>
+    </scene>
+    <include><uri>model://sun</uri></include>
+
+    <!-- Sand seabed, top surface at z = 0 -->
+    <model name="seabed">
+      <static>true</static>
+      <link name="link">
+        <collision name="c">
+          <pose>0 0 -0.05 0 0 0</pose>
+          <geometry><box><size>400 400 0.1</size></box></geometry>
+          <laser_retro>0.002</laser_retro>
+        </collision>
+        <visual name="v">
+          <pose>0 0 -0.05 0 0 0</pose>
+          <geometry><box><size>400 400 0.1</size></box></geometry>
+          <laser_retro>0.002</laser_retro>
+          <material><ambient>0.76 0.70 0.50 1</ambient><diffuse>0.76 0.70 0.50 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- Plate on the array boresight at 15 m (front face 14.99 m), turned to face the array -->
+    <model name="plate_target">
+      <static>true</static>
+      <pose>0 -14.2606 4.8565 0 0.35 -1.5708</pose>
+      <link name="link">
+        <collision name="c"><geometry><box><size>0.02 0.3 0.3</size></box></geometry><laser_retro>1.0</laser_retro></collision>
+        <visual name="v"><geometry><box><size>0.02 0.3 0.3</size></box></geometry><laser_retro>1.0</laser_retro></visual>
+      </link>
+    </model>
+  </world>
+</sdf>

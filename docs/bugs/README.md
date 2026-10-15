@@ -30,3 +30,4 @@ Test name and file that now covers it.
 
 | BUG | Title | Severity | Status | REQs | Fixed in |
 |-----|-------|----------|--------|------|----------|
+| BUG-001 | `gpu_ray` ignores laser_retro (Gazebo 11 `Retro()` stub) | major | Fixed | REQ-007 | plan 007 |

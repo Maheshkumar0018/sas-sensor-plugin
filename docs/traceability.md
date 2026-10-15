@@ -12,14 +12,14 @@ tests for a REQ. Code and test columns stay `—` until the work exists.
 | REQ-004 | — | 004 | `scatter.cpp` `BuildScatterers`; plugin `ReadScan` | `test_scatter` FlatGroundLiesOnPlane, DepthDiscontinuityLeavesShadow, RangeGateApplied; V4 | Implemented |
 | REQ-005 | 0004 | 004 | `scatter.hpp` `CellKey`, `VoxelIndex`, `VoxelScatterer` | `test_scatter` Hash.*, BoundaryAlignedSurfaceIsOneLayer, RevisitedVoxelsAreIdentical; V4 | Implemented |
 | REQ-006 | — | 005 | `synth.hpp` `ThorpDbPerMeter`; `synth.cpp` spreading, Lambert | `test_synth` ThorpAt100kHz, SpreadingAndAbsorption; V2 | Implemented |
-| REQ-007 | — | 004 | `scatter.cpp` retro → μ; plugin `default_backscatter_db` | `test_scatter` RetroSetsMuOtherwiseDefault; V2 | Implemented |
+| REQ-007 | 0011 | 004, 007 | `scatter.cpp` retro → μ; plugin `default_backscatter_db`, `OnLaserFrame`/`ApplyGpuRetro` (BUG-001) | `test_scatter` RetroSetsMuOtherwiseDefault; V2 | Implemented |
 | REQ-008 | 0005 | 005, 006 | `synth.hpp` `SolveDelayFromTx` (velocity fed in plan 006) | `test_synth` DelaySolverStaticExactMovingSubMicron, ReceiverMotionShiftsDelayAsModelled; V5 | Implemented |
 | REQ-009 | 0002 | 005 | `synth.cpp` `EchoSynthesizer::Synthesize` | `test_synth` PointTargetDelayOnEveryElement, NoiseStatisticsAndReproducibility; `tests/validation/check_delay.py`; V1, V7 | Implemented |
 | REQ-010 | 0002, 0003 | 002 | `src/sas_msgs/msg/SasPing.msg` | `src/sas_msgs/test/test_sasping_contract.py`; plan 002 exit check | Implemented |
 | REQ-011 | 0003, 0005, 0010 | 002 (field), 006 (fill) | plugin `OnWorldUpdateEnd`, `LookupState`, `OnScan` | `tests/validation/check_state.py`; plan 006 exit check | Implemented |
 | REQ-012 | 0004, 0010 | 005, 006 | `FFTW_ESTIMATE`; per-element threads; seeded noise; strict-rate gate / `--lockstep`; state history | `test_synth` IndependentOfThreadCount; `test_scatter` SameInputSameOutputOrder; V6 | Draft |
 | REQ-013 | — | 006 | `dsp.hpp` `RangeAmbiguous`, `DpcaViolated`; plugin `CheckDpca`, `CheckTiming` | `test_dsp` DesignChecks.*; plan 006 exit check | Implemented |
-| REQ-014 | 0005 | 007 | — | plan 007 exit check | Draft |
+| REQ-014 | 0005 | 007 | `sas_description/urdf/sas_array.xacro`, `sas_test_carrier.urdf.xacro` | `check_urdf`; plan 007 exit check | Implemented |
 | REQ-101 | 0008, 0009 | 001 | `src/*/package.xml`, `src/*/CMakeLists.txt` | build | Draft |
-| REQ-102 | — | 007 | — | CPU run | Draft |
+| REQ-102 | 0010 | 007 | `sensor_type:=ray`; strict-rate gate | plan 007 exit check (CPU `ray` runs) | Implemented |
 | REQ-103 | — | 009 | — | perf run | Draft |

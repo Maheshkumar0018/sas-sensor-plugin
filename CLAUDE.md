@@ -49,7 +49,7 @@ colcon build --symlink-install --cmake-args -DCMAKE_BUILD_TYPE=Release
 source install/setup.bash
 colcon test && colcon test-result --verbose          # unit tests
 pytest tests/validation                              # system validation (needs recorded bags)
-ros2 launch sas_bringup sas_sensor.launch.py         # run sensor in test world
+ros2 launch sas_bringup sas_sensor.launch.py         # run sensor in test world (see README for args)
 ```
 
 ## Environment notes

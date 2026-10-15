@@ -11,6 +11,8 @@
 
   <exec_depend>xacro</exec_depend>
   <exec_depend>urdf</exec_depend>
+  <exec_depend>gazebo_plugins</exec_depend>
+  <exec_depend>sas_gazebo</exec_depend>
 
   <export>
     <build_type>ament_cmake</build_type>
