@@ -22,4 +22,4 @@ tests for a REQ. Code and test columns stay `—` until the work exists.
 | REQ-014 | 0005 | 007 | `sas_description/urdf/sas_array.xacro`, `sas_test_carrier.urdf.xacro` | `check_urdf`; plan 007 exit check | Verified |
 | REQ-101 | 0008, 0009 | 001 | `src/*/package.xml`, `src/*/CMakeLists.txt` | build | Verified |
 | REQ-102 | 0010 | 007 | `sensor_type:=ray`; strict-rate gate | plan 007 exit check (CPU `ray` runs) | Verified |
-| REQ-103 | — | 009 | — | perf run | Draft |
+| REQ-103 | — | 009 | `synth.hpp` `FractionalDelayTaps`, closed-form `SolveDelayFromTx`; `synth.cpp` chunked tasks; `scatter.hpp` `KeySet`; `scatter.cpp` parallel build | `tests/validation/measure_rtf.sh`; `test_synth` Kernel.*, `test_scatter` KeySet.*, Build.IndependentOfThreadCount | Verified |

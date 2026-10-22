@@ -104,12 +104,12 @@ TEST(Propagation, DelaySolverStaticExactMovingSubMicron)  // REQ-008
   const Vector3d p(25.0, 12.0, -8.0), tx(0, 0, 0), rx(0, 0.3, 0);
   double r_rx = 0.0;
   const double tau0 = sy::SolveDelay(p, tx, rx, Vector3d::Zero, 1500.0, r_rx);
-  EXPECT_DOUBLE_EQ(tau0, (p.Distance(tx) + p.Distance(rx)) / 1500.0);
+  EXPECT_NEAR(tau0, (p.Distance(tx) + p.Distance(rx)) / 1500.0, 1e-15);
   const Vector3d v(0.0, 3.0, 0.0);
   const double tau1 = sy::SolveDelay(p, tx, rx, v, 1500.0, r_rx);
   double tau = tau0;  // converge by iteration for the exact answer
   for (int i = 0; i < 50; ++i) {tau = (p.Distance(tx) + p.Distance(rx + v * tau)) / 1500.0;}
-  EXPECT_LT(std::abs(tau1 - tau) * 1500.0, 1e-6);  // path error < 1 um
+  EXPECT_LT(std::abs(tau1 - tau) * 1500.0, 1e-9);  // closed form: path error < 1 nm
   EXPECT_GT(std::abs(tau1 - tau0) * 1500.0, 1e-3);  // and motion does matter
 }
 
@@ -225,4 +225,18 @@ TEST(Synthesis, IndependentOfThreadCount)  // REQ-012
   ASSERT_GT(peak, 10.0f * static_cast<float>(p.noise_std));  // echo present, not just noise
   EXPECT_EQ(re1, re8);
   EXPECT_EQ(im1, im8);
+}
+
+TEST(Kernel, FastTapsMatchDirectFormula)  // plan 009 optimisation keeps the model
+{
+  double w[8];
+  for (double f : {0.0, 1e-12, 0.1, 0.25, 0.5, 0.731, 0.999999}) {
+    sy::FractionalDelayTaps(f, w);
+    for (int i = 0; i < 8; ++i) {
+      const double x = f + 3 - i;
+      const double direct = sas_gazebo::dsp::Sinc(x) * 0.5 * (1.0 + std::cos(M_PI * x / 4.0));
+      // sin(pi f) near f = 1 loses relative precision (~1e-11 here); the echo is float32 (~6e-8).
+      EXPECT_NEAR(w[i], direct, 1e-9) << "f=" << f << " i=" << i;
+    }
+  }
 }

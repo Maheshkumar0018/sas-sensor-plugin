@@ -7,6 +7,8 @@
 #include <cmath>
 #include <vector>
 
+#include <omp.h>
+
 namespace sas_gazebo
 {
 namespace scatter
@@ -29,6 +31,7 @@ void BuildScatterers(
   ws.valid.assign(n_rays, 0);
   const double r_hi = std::min(s.rmax * 0.999, p.max_range);
   const double r_lo = std::max(s.rmin, p.min_range);
+  #pragma omp parallel for schedule(static)
   for (int j = 0; j < nv; ++j) {
     const double el = s.vmin + j * s.vres;
     for (int i = 0; i < nh; ++i) {
@@ -45,13 +48,25 @@ void BuildScatterers(
     }
   }
 
-  ws.seen.clear();
   const Vector3d origin = array_pose.Pos();
   const double step = 0.5 * p.cell_size;
   const double cos_max = std::cos(p.max_incidence);
 
+  // Parallel and deterministic (plan 009): each quad row lists its voxel candidates, keeping only
+  // the first occurrence within the row; rows are then merged in order against one global set, so
+  // the kept voxels and their order are exactly those of a serial scan; finally the per-voxel
+  // hash work runs in parallel on the kept list.
+  const int n_rows = nv - 1;
+  ws.rows.resize(static_cast<size_t>(n_rows));
+  ws.row_sets.resize(static_cast<size_t>(omp_get_max_threads()));
+
   // 2. Quads on the range-image grid.
-  for (int j = 0; j < nv - 1; ++j) {
+  #pragma omp parallel for schedule(dynamic, 4)
+  for (int j = 0; j < n_rows; ++j) {
+    auto & row = ws.rows[static_cast<size_t>(j)];
+    row.clear();
+    KeySet & row_seen = ws.row_sets[static_cast<size_t>(omp_get_thread_num())];
+    row_seen.Clear();
     for (int i = 0; i < nh - 1; ++i) {
       const size_t a = static_cast<size_t>(j) * nh + i;
       const size_t b = a + 1;
@@ -100,21 +115,42 @@ void BuildScatterers(
           const double fw = (w + 0.5) / nw;
           const Vector3d q = (1 - fu) * (1 - fw) * p00 + fu * (1 - fw) * p10 +
             (1 - fu) * fw * p01 + fu * fw * p11;
-          const int64_t ix = VoxelIndex(q.X(), p.cell_size);
-          const int64_t iy = VoxelIndex(q.Y(), p.cell_size);
-          const int64_t iz = VoxelIndex(q.Z(), p.cell_size);
-          if (!ws.seen.insert(CellKey(ix, iy, iz)).second) {
-            continue;  // one scatterer per voxel per ping
+          Candidate cand;
+          cand.ix = VoxelIndex(q.X(), p.cell_size);
+          cand.iy = VoxelIndex(q.Y(), p.cell_size);
+          cand.iz = VoxelIndex(q.Z(), p.cell_size);
+          cand.key = CellKey(cand.ix, cand.iy, cand.iz);
+          if (!row_seen.Insert(cand.key)) {
+            continue;
           }
-          // 5. Position and speckle from the voxel hash only (REQ-005, ADR-0004).
-          Scatterer sc;
-          VoxelScatterer(ix, iy, iz, p.cell_size, p.seed, sc);
-          sc.normal = n;
-          sc.mu = mu;
-          out.push_back(sc);
+          cand.normal = n;
+          cand.mu = mu;
+          row.push_back(cand);
         }
       }
     }
+  }
+
+  // Merge rows in order: one scatterer per voxel per ping, first occurrence wins.
+  ws.seen.Clear();
+  ws.kept.clear();
+  for (const auto & row : ws.rows) {
+    for (const auto & cand : row) {
+      if (ws.seen.Insert(cand.key)) {
+        ws.kept.push_back(&cand);
+      }
+    }
+  }
+
+  // 5. Position and speckle from the voxel hash only (REQ-005, ADR-0004).
+  out.resize(ws.kept.size());
+  #pragma omp parallel for schedule(static)
+  for (int64_t k = 0; k < static_cast<int64_t>(ws.kept.size()); ++k) {
+    const Candidate & cand = *ws.kept[static_cast<size_t>(k)];
+    Scatterer & sc = out[static_cast<size_t>(k)];
+    VoxelScatterer(cand.ix, cand.iy, cand.iz, p.cell_size, p.seed, sc);
+    sc.normal = cand.normal;
+    sc.mu = cand.mu;
   }
 }
 

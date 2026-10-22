@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include <gtest/gtest.h>
+#include <omp.h>
 
 #include <cmath>
 #include <complex>
@@ -249,6 +250,45 @@ TEST(Build, SameInputSameOutputOrder)  // REQ-012
   for (size_t i = 0; i < a.size(); ++i) {
     ASSERT_EQ(a[i].key, b[i].key);
     ASSERT_EQ(a[i].pos, b[i].pos);
+    ASSERT_EQ(a[i].speckle, b[i].speckle);
+  }
+}
+
+TEST(KeySet, InsertClearGrow)  // plan 009 replacement for std::unordered_set
+{
+  sc::KeySet set;
+  set.Clear();
+  for (uint64_t k = 0; k < 200000; ++k) {
+    ASSERT_TRUE(set.Insert(k * 7919));
+  }
+  for (uint64_t k = 0; k < 200000; ++k) {
+    ASSERT_FALSE(set.Insert(k * 7919));
+  }
+  EXPECT_EQ(set.size(), 200000u);
+  set.Clear();
+  EXPECT_EQ(set.size(), 0u);
+  EXPECT_TRUE(set.Insert(7919));
+  EXPECT_TRUE(set.Insert(0));  // key 0 is a normal key
+  EXPECT_FALSE(set.Insert(0));
+}
+
+TEST(Build, IndependentOfThreadCount)  // REQ-012, plan 009 parallel build
+{
+  const auto p = TestParams();
+  Box box;
+  box.on = true;
+  const auto scan = MakeScan(DownLooking(0.07), 0.3, box, 256);
+  omp_set_num_threads(1);
+  const auto a = Build(scan, DownLooking(0.07), p);
+  omp_set_num_threads(8);
+  const auto b = Build(scan, DownLooking(0.07), p);
+  ASSERT_GT(a.size(), 1000u);
+  ASSERT_EQ(a.size(), b.size());
+  for (size_t i = 0; i < a.size(); ++i) {
+    ASSERT_EQ(a[i].key, b[i].key);
+    ASSERT_EQ(a[i].pos, b[i].pos);
+    ASSERT_EQ(a[i].normal, b[i].normal);
+    ASSERT_EQ(a[i].mu, b[i].mu);
     ASSERT_EQ(a[i].speckle, b[i].speckle);
   }
 }

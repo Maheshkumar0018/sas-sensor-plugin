@@ -18,6 +18,7 @@
 #include <gazebo/common/Events.hh>
 #include <gazebo/common/Plugin.hh>
 #include <gazebo/physics/physics.hh>
+#include <gazebo/rendering/GpuLaser.hh>
 #include <gazebo/sensors/GpuRaySensor.hh>
 #include <gazebo/sensors/RaySensor.hh>
 #include <gazebo/sensors/Sensor.hh>
@@ -229,6 +230,8 @@ private:
 
   void OnScan()
   {
+    // Diagnostics only (plan 009 profile); steady_clock never reaches the output.
+    const auto t_in = std::chrono::steady_clock::now();
     if (gpu_ray_) {
       ReadScan(gpu_ray_, scan_);
       ApplyGpuRetro();
@@ -244,6 +247,15 @@ private:
     LookupState(t_tx.Double(), array_pose, vel);
     CheckTiming(t_tx.Double());
     CheckDpca(array_pose, vel);
+    if (debug_scatterers_ && gpu_ray_ && gpu_ray_->LaserCamera()) {
+      // Diagnostic: where the GPU laser was rendered from vs the physics state for this ping.
+      const auto cam = gpu_ray_->LaserCamera()->WorldPosition();
+      const double v = vel.Length();
+      const double d = (cam - array_pose.Pos()).Length();
+      RCLCPP_INFO(
+        ros_node_->get_logger(), "ping %lu render-vs-state offset %.6f m (%.2f ms at |v| %.2f)",
+        static_cast<unsigned long>(ping_id_), d, v > 0 ? 1e3 * d / v : 0.0, v);
+    }
 
     const auto t0 = std::chrono::steady_clock::now();  // diagnostics only, never in output
     scatter::BuildScatterers(scan_, array_pose, sp_, ws_, scatterers_);
@@ -284,7 +296,21 @@ private:
     msg.num_elements = static_cast<uint32_t>(p_.num_elements);
     msg.num_samples = static_cast<uint32_t>(synth_->num_samples());
 
+    const auto t3 = std::chrono::steady_clock::now();
     pub_->publish(msg);
+    const auto t4 = std::chrono::steady_clock::now();
+    if (debug_scatterers_) {
+      auto ms = [](auto a, auto b) {return std::chrono::duration<double, std::milli>(b - a).count();};
+      const double period = last_in_valid_ ? ms(last_in_, t_in) : 0.0;
+      RCLCPP_INFO(
+        ros_node_->get_logger(),
+        "ping %lu timing [ms]: scan+state %.1f build %.1f synth %.1f msg %.1f publish %.1f "
+        "callback %.1f | wall period %.1f",
+        static_cast<unsigned long>(msg.ping_id), ms(t_in, t0), ms(t0, t1), ms(t1, t2), ms(t2, t3),
+        ms(t3, t4), ms(t_in, t4), period);
+    }
+    last_in_ = t_in;
+    last_in_valid_ = true;
 
     // Release the strict-rate gate for this ping.
     {
@@ -504,6 +530,8 @@ private:
   scatter::Workspace ws_;
   std::vector<scatter::Scatterer> scatterers_;
   bool debug_scatterers_ = false;
+  std::chrono::steady_clock::time_point last_in_;
+  bool last_in_valid_ = false;
   uint64_t tracked_key_ = 0;
 
   synth::Params yp_;

@@ -13,6 +13,7 @@ Sections in this order, only when non-empty: Added, Changed, Deprecated, Removed
 ## [Unreleased]
 
 ### Added
+- `tests/validation/measure_rtf.sh` + `measure_rate.py` (REQ-103 measurement) and `check_bags.py` (bag vs scenario consistency). plan 009
 - Sensor validation V1–V7 (`tests/validation/`): bag recorder and 21-scenario script, models from `SasPing` fields, pytest checks for delay, spreading/absorption, beam pattern, DPCA coherence, moving receiver, determinism, noise. All pass. plan 008
 - Worlds `sas_target_only.world` (distributed and squinted plates) and `sas_empty.world`; launch arg `yaw`. plan 008
 - `sas_description`: reusable `sas_array.xacro` macro and `sas_test_carrier.urdf.xacro` (stock `planar_move`). plan 007, REQ-014, ADR-0005
@@ -41,6 +42,8 @@ Sections in this order, only when non-empty: Added, Changed, Deprecated, Removed
 - Project overview deck, self-contained HTML, 11 slides. `docs/presentations/sas_sensor_overview.html`
 
 ### Changed
+- Performance: 609 → 186 ms per ping at the defaults (`gpu_ray` RTF 0.16 → 0.53, CPU `ray` ~0.15 → 0.30). Fractional-delay taps from 3 trig calls, closed-form moving-receiver delay, flat voxel key set, deterministic parallel scatterer build, fixed-chunk parallel synthesis. Output stays bit-identical for any thread count. plan 009, REQ-103, REQ-012
+- V5 validation averages three `gpu_ray` realizations; V6 records from `ping_id` 30. plan 009
 - `sas_sensor.launch.py` fails with "world file not found" instead of letting `gzserver` fall back to its default world. plan 008
 - Scope reduced to the sensor plugin only. Navigation error, trajectory, and processing move to a downstream package. ADR-0001
 - `SasPing` revised: `pose_true` renamed to `pose`; `source_level`, `noise_std`, `element_length`, `tx_length` added. ADR-0003

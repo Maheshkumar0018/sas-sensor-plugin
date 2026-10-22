@@ -9,6 +9,7 @@
 
 #include <fftw3.h>
 
+#include <cmath>
 #include <complex>
 #include <cstdint>
 #include <vector>
@@ -36,21 +37,24 @@ inline double ThorpDbPerMeter(double f_hz)
   return db_per_km / 1000.0;
 }
 
-// Two-way delay with the receiver moving at `vel` while the echo travels (no stop-and-hop).
-// Solves tau = (r_tx + |P - (R + v tau)|) / c by fixed-point iteration from the static delay.
-// Each iteration shrinks the error by about |v|/c. One iteration leaves ~40 um of path error at
-// 3 m/s and 30 m; two leave < 1e-6 m.  REQ-008
-// Returns tau; `r_rx` receives the receive path length at arrival.
+// Two-way delay with the receiver moving at `vel` while the echo travels (no stop-and-hop).  REQ-008
+// Solves tau = (r_tx + rho) / c with rho = |D - v tau|, D = P - R, exactly: substituting tau gives
+//   (1 - b2) rho^2 + 2 (g - b2 r_tx) rho + (2 g r_tx - b2 r_tx^2 - |D|^2) = 0,
+//   g = D.v / c, b2 = |v|^2 / c^2,
+// whose positive root is rho. One sqrt instead of the three of a two-step fixed-point iteration
+// (plan 009), and exact rather than < 1e-6 m. Returns tau; `r_rx` receives rho.
 inline double SolveDelayFromTx(
   const Vector3d & p, double r_tx, const Vector3d & rx, const Vector3d & vel, double c,
   double & r_rx)
 {
-  double tau = (r_tx + p.Distance(rx)) / c;
-  for (int it = 0; it < 2; ++it) {
-    r_rx = p.Distance(rx + vel * tau);
-    tau = (r_tx + r_rx) / c;
-  }
-  return tau;
+  const Vector3d d = p - rx;
+  const double g = d.Dot(vel) / c;
+  const double b2 = vel.SquaredLength() / (c * c);
+  const double qa = 1.0 - b2;
+  const double qb = 2.0 * (g - b2 * r_tx);
+  const double qc = 2.0 * g * r_tx - b2 * r_tx * r_tx - d.SquaredLength();
+  r_rx = (-qb + std::sqrt(qb * qb - 4.0 * qa * qc)) / (2.0 * qa);
+  return (r_tx + r_rx) / c;
 }
 
 inline double SolveDelay(
@@ -58,6 +62,32 @@ inline double SolveDelay(
   double & r_rx)
 {
   return SolveDelayFromTx(p, p.Distance(tx), rx, vel, c, r_rx);
+}
+
+// 8-tap Hann-windowed sinc fractional-delay kernel for taps m = n0-3 .. n0+4, with f = nf - n0 in
+// [0, 1): w[i] = sinc(x) * 0.5 * (1 + cos(pi x / 4)), x = f + 3 - i.
+// The taps are one sample apart, so sin(pi x) = (-1)^(3-i) sin(pi f) and cos(pi x / 4) follows from
+// one sin/cos pair by angle addition: 3 trig calls instead of 16 (plan 009). Same values as the
+// direct formula up to rounding.
+inline void FractionalDelayTaps(double f, double w[8])
+{
+  const double s_pf = std::sin(M_PI * f);
+  const double c4 = std::cos(M_PI * f / 4.0);
+  const double s4 = std::sin(M_PI * f / 4.0);
+  constexpr double kC[8] = {  // cos(pi k / 4), k = 3 - i
+    -0.70710678118654752, 0.0, 0.70710678118654752, 1.0,
+    0.70710678118654752, 0.0, -0.70710678118654752, -1.0};
+  constexpr double kS[8] = {  // sin(pi k / 4), k = 3 - i
+    0.70710678118654752, 1.0, 0.70710678118654752, 0.0,
+    -0.70710678118654752, -1.0, -0.70710678118654752, 0.0};
+  for (int i = 0; i < 8; ++i) {
+    const int k = 3 - i;
+    const double x = f + k;
+    const double sinc = std::abs(x) < 1e-9 ? 1.0 :
+      ((k & 1) ? -s_pf : s_pf) / (M_PI * x);  // sin(pi (f + k)) = (-1)^k sin(pi f)
+    const double cos_x4 = c4 * kC[i] - s4 * kS[i];  // cos(pi f / 4 + pi k / 4)
+    w[i] = sinc * 0.5 * (1.0 + cos_x4);
+  }
 }
 
 struct Params
@@ -109,7 +139,9 @@ private:
   int ns_ = 0;
   int nfft_ = 0;
   double alpha_db_m_ = 0.0;
+  static constexpr int kChunks = 4;  // scatterer slices per element (fixed: determinism)
   std::vector<fftwf_complex *> buf_;
+  std::vector<fftwf_complex *> chunk_buf_;  // n_el * kChunks impulse-train buffers
   fftwf_plan fwd_ = nullptr;
   fftwf_plan inv_ = nullptr;
   std::vector<std::complex<float>> chirp_spec_;

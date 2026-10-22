@@ -23,7 +23,7 @@ Prove the echo physics. No image formation (out of scope, ADR 0001).
 | V2 | Target-only world, 4 × 4 m horizontal plate, carrier at 10/15/20/25 m on one line of sight | Echo energy vs model energy (summed over plate facets), relative to 15 m, within 1 dB | 006, 007 |
 | V3 | Same plate, carrier yawed 0 … 0.30 rad | Energy vs model within 1 dB wherever model ≥ −25 dB | 003 |
 | V4 | Seabed world, 0.2 m/s (= d/2 per ping) | DPCA pair correlation (ping n+1 el k vs ping n el k+1) ≥ 0.9 and above the same-element control | 004, 005 |
-| V5 | Squinted plate; static run spawned at the exact pose of moving ping 20 (1.5 m/s) | Per-element delay change (complex cross-correlation) = model motion term within 0.1 sample | 008 |
+| V5 | Squinted plate; static runs spawned at the exact pose of moving pings (1.5 m/s) | Per-element delay change (complex cross-correlation) = model motion term: `ray` one realization within 0.1 sample; `gpu_ray` mean of 3 realizations within 0.1, each within 0.2 (plan 009 log) | 008 |
 | V6 | Seabed world, static, two runs each `gpu_ray` and `ray`, pings matched by `ping_id` | Pose and echo arrays bit-identical | 012 |
 | V7 | Empty world | Std per component within 2 % of `noise_std`, mean < 1 % σ, lag-1 correlation < 0.02, new noise each ping | 009 |
 

@@ -46,7 +46,9 @@ ros2 launch sas_bringup sas_sensor.launch.py sensor_type:=ray h_samples:=256 v_s
 python3 tests/validation/check_state.py --vel 1.5 0 0               # stamps, pose, velocity
 ```
 
-Simulation runs in lockstep with the sonar, slower than real time (RTF ~0.15–0.2 at the defaults).
+Simulation runs in lockstep with the sonar, slower than real time: RTF ≈ 0.53 with `gpu_ray`
+(187 ms per ping at the defaults) and ≈ 0.30 with CPU `ray` 256² (REQ-103,
+`tests/validation/measure_rtf.sh`).
 `ros2 topic hz` shows wall-clock rate; ping stamps are exactly 1/PRF apart in sim time.
 
 To mount the array on your own vehicle:
@@ -76,5 +78,5 @@ pytest tests/validation                         # sensor validation V1–V7
 
 ## Status
 
-Plans 001–008 done: the sensor is implemented and passes unit tests and validation V1–V7.
-Plan 009 (performance) is waiting for a target (REQ-103). See `docs/plans/000-roadmap.md`.
+Plans 001–009 done: the sensor is implemented, passes unit tests and validation V1–V7, and meets
+the performance target (REQ-103). See `docs/plans/000-roadmap.md`.

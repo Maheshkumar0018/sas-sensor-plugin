@@ -7,10 +7,10 @@
 #ifndef SAS_GAZEBO__SCATTER_HPP_
 #define SAS_GAZEBO__SCATTER_HPP_
 
+#include <algorithm>
 #include <cmath>
 #include <complex>
 #include <cstdint>
-#include <unordered_set>
 #include <vector>
 
 #include <ignition/math/Pose3.hh>
@@ -120,12 +120,87 @@ inline void VoxelScatterer(
   sc.speckle = std::complex<double>(rad * std::cos(ang), rad * std::sin(ang));
 }
 
+// Set of 64-bit keys for per-ping voxel de-duplication (plan 009). Open addressing with linear
+// probing; a generation counter empties it in O(1) per ping, so it never reallocates once it is
+// large enough. Only answers "seen before?", so the scatterer order is unchanged.
+class KeySet
+{
+public:
+  void Clear()
+  {
+    if (++gen_ == 0) {  // wrapped: reset stamps once every 2^32 pings
+      std::fill(stamp_.begin(), stamp_.end(), 0u);
+      gen_ = 1;
+    }
+    size_ = 0;
+  }
+
+  // Inserts key; returns true if it was not present.
+  bool Insert(uint64_t key)
+  {
+    if (2 * (size_ + 1) > keys_.size()) {
+      Grow();
+    }
+    const size_t mask = keys_.size() - 1;
+    for (size_t i = SplitMix64(key) & mask;; i = (i + 1) & mask) {
+      if (stamp_[i] != gen_) {
+        stamp_[i] = gen_;
+        keys_[i] = key;
+        ++size_;
+        return true;
+      }
+      if (keys_[i] == key) {
+        return false;
+      }
+    }
+  }
+
+  size_t size() const {return size_;}
+
+private:
+  void Grow()
+  {
+    std::vector<uint64_t> old_keys;
+    std::vector<uint32_t> old_stamp;
+    old_keys.swap(keys_);
+    old_stamp.swap(stamp_);
+    const uint32_t old_gen = gen_;
+    const size_t cap = std::max<size_t>(1u << 16, 2 * old_keys.size());
+    keys_.assign(cap, 0);
+    stamp_.assign(cap, 0u);
+    gen_ = 1;
+    size_ = 0;
+    for (size_t i = 0; i < old_keys.size(); ++i) {
+      if (old_stamp[i] == old_gen) {
+        Insert(old_keys[i]);
+      }
+    }
+  }
+
+  std::vector<uint64_t> keys_;
+  std::vector<uint32_t> stamp_;
+  uint32_t gen_ = 1;
+  size_t size_ = 0;
+};
+
+// One voxel hit by a quad sample, before de-duplication across rows.
+struct Candidate
+{
+  int64_t ix, iy, iz;
+  uint64_t key;
+  Vector3d normal;
+  double mu;
+};
+
 // Reusable buffers so a ping allocates nothing once warmed up.
 struct Workspace
 {
   std::vector<Vector3d> pts;
   std::vector<char> valid;
-  std::unordered_set<uint64_t> seen;
+  KeySet seen;                               // global, merge step
+  std::vector<KeySet> row_sets;              // one per OpenMP thread
+  std::vector<std::vector<Candidate>> rows;  // candidates per quad row
+  std::vector<const Candidate *> kept;       // merged, in serial-scan order
 };
 
 // Reconstructs the visible surface from `scan` (taken at `array_pose`, array frame in world)

@@ -13,7 +13,7 @@ when its exit check passes. Do them in order.
 | 006 | Platform state, timing, design checks | REQ-011, 012, 013 | Done |
 | 007 | Description, test worlds, launch | REQ-014, 102 | Done |
 | 008 | Sensor validation V1–V7 | all functional | Done |
-| 009 | Performance tuning (optional) | REQ-103 | Not started |
+| 009 | Performance tuning (optional) | REQ-103 | Done |
 
 ```
 001 workspace

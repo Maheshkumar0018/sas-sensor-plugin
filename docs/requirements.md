@@ -31,7 +31,7 @@ Status values: `Draft` → `Approved` → `Implemented` → `Verified`.
 |----|-------------|-------------|--------|
 | REQ-101 | Ubuntu 22.04, ROS 2 Humble, Gazebo Classic 11, C++17. | Build | Verified |
 | REQ-102 | Run on CPU (`ray`) when no OpenGL GPU is available. | plan 007 run with `sensor_type:=ray` | Verified |
-| REQ-103 | Performance target: **TBD** (real-time factor and max ping latency at default parameters). | plan 009 | Draft — needs value |
+| REQ-103 | Real-time factor ≥ 0.5 (≤ 0.2 s wall time per ping) at default parameters: `gpu_ray` 512 × 512 rays, 16 elements, `cell_size` 0.04 m, 60 m range, 10 Hz PRF, `sas_seabed.world` at 1.5 m/s, Release build, on the development workstation (NVIDIA T1000). CPU `ray` is best effort. | `tests/validation/measure_rtf.sh` (plan 009) | Verified |
 
 ## Out of scope (downstream package)
 

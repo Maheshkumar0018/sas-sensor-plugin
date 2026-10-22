@@ -49,6 +49,7 @@ colcon build --symlink-install --cmake-args -DCMAKE_BUILD_TYPE=Release
 source install/setup.bash
 colcon test && colcon test-result --verbose          # unit tests
 pytest tests/validation                              # system validation (needs recorded bags)
+DISPLAY=:1 tests/validation/measure_rtf.sh 0.5       # REQ-103 performance check
 ros2 launch sas_bringup sas_sensor.launch.py         # run sensor in test world (see README for args)
 ```
 
@@ -71,6 +72,10 @@ ros2 launch sas_bringup sas_sensor.launch.py         # run sensor in test world 
 - Never use `pkill -f <pattern>` / `pgrep -f ... | xargs kill` from the Bash tool: the pattern also
   matches the tool's own shell command line and kills it (exit 144). Start background processes in
   a script and stop them by `$!` PID.
+- Exact multi-line or `|`-containing replacements: use the Edit tool or Python, not `sed` (a `|`
+  delimiter clash once corrupted `record_bags.sh` and made sed write a stray file).
+- A background task can outlive its session and be re-run on resume. Before starting a recorder,
+  check `ps` for another `record_bags.sh`; after recording, run `tests/validation/check_bags.py`.
 - After adding files under an installed directory (worlds, launch, urdf), rebuild: symlink-install
   links individual files at build time, so new files are missing from `install/` until then.
 - `timeout` does not always stop `gzserver`; stop it with `pkill -INT -f <world>` and check

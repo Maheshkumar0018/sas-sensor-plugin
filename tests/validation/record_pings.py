@@ -49,6 +49,7 @@ def main():
             return
         t = msg.header.stamp.sec * 10**9 + msg.header.stamp.nanosec
         writer.write(a.topic, serialize_message(msg), t)
+        state.setdefault('first_id', msg.ping_id)
         state['written'] += 1
 
     node.create_subscription(SasPing, a.topic, on_ping,
@@ -56,7 +57,9 @@ def main():
     while state['written'] < a.count and rclpy.ok():
         rclpy.spin_once(node, timeout_sec=1.0)
     del writer
-    print(f'{a.out}: wrote {state["written"]} pings (skipped {a.skip})')
+    how = f'from ping_id {a.from_id}' if a.from_id is not None else f'skipped {a.skip}'
+    first = state.get('first_id')
+    print(f'{a.out}: wrote {state["written"]} pings ({how}; first ping_id {first})')
     node.destroy_node()
     rclpy.shutdown()
     return 0 if state['written'] == a.count else 1
