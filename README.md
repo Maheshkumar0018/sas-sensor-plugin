@@ -60,6 +60,7 @@ To mount the array on your own vehicle:
 
 ```bash
 colcon test && colcon test-result --verbose     # unit tests
+DISPLAY=:1 tests/validation/record_bags.sh     # record validation bags (~15 min, local only)
 pytest tests/validation                         # sensor validation V1–V7
 ```
 
@@ -75,4 +76,5 @@ pytest tests/validation                         # sensor validation V1–V7
 
 ## Status
 
-Pre-implementation. See `docs/plans/000-roadmap.md`.
+Plans 001–008 done: the sensor is implemented and passes unit tests and validation V1–V7.
+Plan 009 (performance) is waiting for a target (REQ-103). See `docs/plans/000-roadmap.md`.

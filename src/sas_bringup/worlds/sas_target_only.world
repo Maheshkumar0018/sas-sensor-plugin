@@ -1,0 +1,44 @@
+<?xml version="1.0"?>
+<!-- Copyright 2026 The SAS Sensor Plugin Authors
+     SPDX-License-Identifier: Apache-2.0
+
+     Validation world without seabed (plan 008, V2, V3, V5): plates only, so target amplitudes
+     are measured against receiver noise instead of seabed clutter. laser_retro 1.0 on visual and
+     collision (gpu_ray reads visual, ray reads collision).
+     plate_c: large horizontal plate (distributed target) for V2 (carrier moved along the
+              boresight line) and V3 (carrier yawed).
+     plate_b: 5 m ahead along-track and 15 m from the array when the carrier is at (35, 0, 10),
+              facing that point (squinted target for V5). -->
+<sdf version="1.6">
+  <world name="sas_target_only">
+    <physics type="ode">
+      <max_step_size>0.001</max_step_size>
+      <real_time_factor>1.0</real_time_factor>
+      <real_time_update_rate>1000</real_time_update_rate>
+    </physics>
+    <include><uri>model://sun</uri></include>
+
+    <!-- plate_c: 4 x 4 x 0.04 m horizontal plate, top at z = 4.84 (a voxel centre height, so the
+         top face lies in one voxel layer), centred on the carrier boresight 15 m from the array
+         when the carrier is at (20, 0, 10), yaw 0. It spans ~100 range cells, so its echo energy
+         averages speckle (V2, V3). -->
+    <model name="plate_c">
+      <static>true</static>
+      <pose>20 -14.2606 4.82 0 0 0</pose>
+      <link name="link">
+        <collision name="c"><geometry><box><size>4 4 0.04</size></box></geometry><laser_retro>1.0</laser_retro></collision>
+        <visual name="v"><geometry><box><size>4 4 0.04</size></box></geometry><laser_retro>1.0</laser_retro></visual>
+      </link>
+    </model>
+
+    <!-- 0.3 m plate, 5 m along-track squint, 15 m, facing the array at x = 35 -->
+    <model name="plate_b">
+      <static>true</static>
+      <pose>40 -13.4551 5.1507 0 0.3292 -1.2108</pose>
+      <link name="link">
+        <collision name="c"><geometry><box><size>0.02 0.3 0.3</size></box></geometry><laser_retro>1.0</laser_retro></collision>
+        <visual name="v"><geometry><box><size>0.02 0.3 0.3</size></box></geometry><laser_retro>1.0</laser_retro></visual>
+      </link>
+    </model>
+  </world>
+</sdf>

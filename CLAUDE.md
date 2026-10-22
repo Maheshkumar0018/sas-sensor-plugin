@@ -71,6 +71,8 @@ ros2 launch sas_bringup sas_sensor.launch.py         # run sensor in test world 
 - Never use `pkill -f <pattern>` / `pgrep -f ... | xargs kill` from the Bash tool: the pattern also
   matches the tool's own shell command line and kills it (exit 144). Start background processes in
   a script and stop them by `$!` PID.
+- After adding files under an installed directory (worlds, launch, urdf), rebuild: symlink-install
+  links individual files at build time, so new files are missing from `install/` until then.
 - `timeout` does not always stop `gzserver`; stop it with `pkill -INT -f <world>` and check
   `pgrep -a gzserver`, or the next run fails with "Address already in use".
 

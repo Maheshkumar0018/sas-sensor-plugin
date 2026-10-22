@@ -27,6 +27,9 @@ def nodes(context):
     world = arg('world')
     if not os.path.isabs(world):
         world = os.path.join(get_package_share_directory('sas_bringup'), 'worlds', world)
+    if not os.path.isfile(world):
+        # gzserver would silently fall back to its default world (with a ground plane).
+        raise RuntimeError(f'world file not found: {world} (rebuild after adding worlds?)')
     xacro_file = os.path.join(
         get_package_share_directory('sas_description'), 'urdf', 'sas_test_carrier.urdf.xacro')
     robot_description = xacro.process_file(xacro_file, mappings={
@@ -49,7 +52,7 @@ def nodes(context):
              parameters=[{'robot_description': robot_description, 'use_sim_time': True}]),
         Node(package='gazebo_ros', executable='spawn_entity.py', output='screen',
              arguments=['-entity', 'sas_test_carrier', '-topic', 'robot_description',
-                        '-x', arg('x'), '-y', arg('y'), '-z', arg('z')]),
+                        '-x', arg('x'), '-y', arg('y'), '-z', arg('z'), '-Y', arg('yaw')]),
         # Constant along-track speed for the carrier (stock planar_move, ADR-0005).
         ExecuteProcess(cmd=['ros2', 'topic', 'pub', '-r', '10', '/sas/cmd_vel',
                             'geometry_msgs/msg/Twist',
@@ -70,6 +73,7 @@ def generate_launch_description():
         DeclareLaunchArgument('x', default_value='-10.0'),
         DeclareLaunchArgument('y', default_value='0.0'),
         DeclareLaunchArgument('z', default_value='10.0'),
+        DeclareLaunchArgument('yaw', default_value='0.0', description='carrier spawn yaw, rad'),
         DeclareLaunchArgument('gui', default_value='false'),
         DeclareLaunchArgument('debug', default_value='false',
                               description='log scatterer/retro summary every ping'),

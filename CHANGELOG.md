@@ -13,6 +13,8 @@ Sections in this order, only when non-empty: Added, Changed, Deprecated, Removed
 ## [Unreleased]
 
 ### Added
+- Sensor validation V1–V7 (`tests/validation/`): bag recorder and 21-scenario script, models from `SasPing` fields, pytest checks for delay, spreading/absorption, beam pattern, DPCA coherence, moving receiver, determinism, noise. All pass. plan 008
+- Worlds `sas_target_only.world` (distributed and squinted plates) and `sas_empty.world`; launch arg `yaw`. plan 008
 - `sas_description`: reusable `sas_array.xacro` macro and `sas_test_carrier.urdf.xacro` (stock `planar_move`). plan 007, REQ-014, ADR-0005
 - `sas_bringup`: `sas_point_target.world`, `sas_seabed.world`, `sas_sensor.launch.py` (args world, sensor_type, prf, h_samples, v_samples, speed, x, y, z, gui, debug). plan 007, REQ-102
 - Debug summary (`debug_scatterers` / `debug:=true`) logs raw retro and μ range per ping. plan 007
@@ -39,6 +41,7 @@ Sections in this order, only when non-empty: Added, Changed, Deprecated, Removed
 - Project overview deck, self-contained HTML, 11 slides. `docs/presentations/sas_sensor_overview.html`
 
 ### Changed
+- `sas_sensor.launch.py` fails with "world file not found" instead of letting `gzserver` fall back to its default world. plan 008
 - Scope reduced to the sensor plugin only. Navigation error, trajectory, and processing move to a downstream package. ADR-0001
 - `SasPing` revised: `pose_true` renamed to `pose`; `source_level`, `noise_std`, `element_length`, `tx_length` added. ADR-0003
 - Sensor outputs raw echo only. ADR-0002
