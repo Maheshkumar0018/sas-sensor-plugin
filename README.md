@@ -74,6 +74,8 @@ pytest tests/validation                         # sensor validation V1–V7
 - `docs/decisions/` — architecture decision records (index in `README.md`)
 - `docs/bugs/` — bug records
 - `CHANGELOG.md` — release history
+- `docs/guides/SAS_Sensor_Implementation_Study.md` — how the sensor works, equations, Xacro parameters
+- `docs/guides/SAS_Parameter_Tuning_Guide.md` — every parameter: defaults, ranges, effects, procedures
 - `docs/reference/` — SAS theory and reference implementation
 
 ## Status

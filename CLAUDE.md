@@ -30,6 +30,7 @@ docs/
   bugs/             bug records (BUG-NNN-title.md) + README.md index
   plans/            implementation plans (NNN-title.md), one per phase
   reference/        theory + original reference implementation (read-only input)
+  guides/           implementation study and parameter-tuning guide (keep in sync with code)
   presentations/    stakeholder decks (self-contained HTML)
 src/                colcon packages: sas_msgs, sas_gazebo, sas_description, sas_bringup
 tests/              cross-package system validation (V1–V7), pytest on recorded bags

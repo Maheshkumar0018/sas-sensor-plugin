@@ -12,6 +12,9 @@ Sections in this order, only when non-empty: Added, Changed, Deprecated, Removed
 
 ## [Unreleased]
 
+### Added
+- `docs/guides/SAS_Sensor_Implementation_Study.md` and `docs/guides/SAS_Parameter_Tuning_Guide.md`: sensor architecture, equations, Xacro parameters, tuning ranges, procedures, troubleshooting.
+
 ### Changed
 - Overview deck refreshed with final results: 13 slides, new Validation, Performance, and Findings slides; status v0.1.0. `docs/presentations/sas_sensor_overview.html`
 
