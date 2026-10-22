@@ -12,6 +12,9 @@ Sections in this order, only when non-empty: Added, Changed, Deprecated, Removed
 
 ## [Unreleased]
 
+### Changed
+- Overview deck refreshed with final results: 13 slides, new Validation, Performance, and Findings slides; status v0.1.0. `docs/presentations/sas_sensor_overview.html`
+
 ## [0.1.0] - 2026-10-22
 
 First release: sensor-only SAS plugin, plans 001–009, all requirements verified.
