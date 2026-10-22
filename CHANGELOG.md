@@ -12,6 +12,10 @@ Sections in this order, only when non-empty: Added, Changed, Deprecated, Removed
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-10-22
+
+First release: sensor-only SAS plugin, plans 001–009, all requirements verified.
+
 ### Added
 - `tests/validation/measure_rtf.sh` + `measure_rate.py` (REQ-103 measurement) and `check_bags.py` (bag vs scenario consistency). plan 009
 - Sensor validation V1–V7 (`tests/validation/`): bag recorder and 21-scenario script, models from `SasPing` fields, pytest checks for delay, spreading/absorption, beam pattern, DPCA coherence, moving receiver, determinism, noise. All pass. plan 008
@@ -57,6 +61,5 @@ Sections in this order, only when non-empty: Added, Changed, Deprecated, Removed
 - `pose_nav` and `range_compressed` from `SasPing`. ADR-0003
 - `sas_trajectory_plugin`, `sas_processing` package, and processing config from the plan. ADR-0001, ADR-0005
 
-<!-- Release links go here once a remote exists, e.g.
-[Unreleased]: https://<host>/<repo>/compare/v0.1.0...HEAD
--->
+[Unreleased]: https://github.com/Maheshkumar0018/sas-sensor-plugin/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/Maheshkumar0018/sas-sensor-plugin/releases/tag/v0.1.0
